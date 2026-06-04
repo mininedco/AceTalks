@@ -1,4 +1,4 @@
-import { useAuth } from '@clerk/clerk-expo'
+import { useAuth } from '@clerk/expo'
 import { Redirect, Tabs } from 'expo-router'
 
 export default function TabsLayout() {

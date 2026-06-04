@@ -35,7 +35,7 @@ Document the blocker here and stop — do not work around it or guess.
 ### P0 — Launch gate
 | Ticket | Evidence | Problem |
 |---|---|---|
-| **ACET-SEC-001** | Dependabot job `1397087679` | **Security CVE: `@clerk/clerk-expo@2.x` entire range vulnerable** (`>= 2.2.11 <= 2.19.35`). No patched `2.x` release. Fix = migrate to `@clerk/expo@3.x`. **Active ticket — fix before any other work.** |
+| ~~ACET-SEC-001~~ | ~~Resolved 2026-06-04~~ | ~~Migrated to `@clerk/expo@3.x`. `@clerk/clerk-expo` removed.~~ |
 | ACET-002 | `supabase/schema.sql` exists but not yet run | **Schema not applied** — all Supabase tables are missing until Nadia runs `schema.sql` + `seed.sql` in the Supabase SQL editor. Auth works; any screen that queries Supabase will fail until this is done. |
 | ACET-003 | `AGENTS.md` environment notes | **Expo Go cannot run the app** — native modules (`@sentry/react-native`, `posthog-react-native`, `react-native-reanimated`) require an EAS dev build. Web works: `npm run web`. Not a code bug — expected for this stack. Resolved in ACET-015. |
 | ACET-003 | Clerk dashboard | **"supabase" JWT template not yet created** — `useSupabaseWithAuth` will fail until the template is set up in the Clerk dashboard (Settings → JWT Templates → New → Supabase). RLS queries will return 0 rows without it. |

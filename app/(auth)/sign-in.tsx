@@ -3,11 +3,14 @@ import {
   View, Text, TextInput, TouchableOpacity,
   KeyboardAvoidingView, Platform, ActivityIndicator, ScrollView,
 } from 'react-native'
-import { useSignIn } from '@clerk/clerk-expo'
+import { useSignIn, useClerk } from '@clerk/expo'
 import { Link, useRouter } from 'expo-router'
 
 export default function SignIn() {
-  const { signIn, setActive, isLoaded } = useSignIn()
+  // WHY: In @clerk/expo v3, setActive and isLoaded are no longer on useSignIn().
+  // setActive moved to useClerk(). Loading state is fetchStatus from the hook.
+  const { signIn, fetchStatus } = useSignIn()
+  const { setActive } = useClerk()
   const router = useRouter()
 
   const [email, setEmail] = useState('')
@@ -15,19 +18,28 @@ export default function SignIn() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
+  const isReady = fetchStatus !== 'fetching'
+
   const handleSignIn = async () => {
-    if (!isLoaded || loading) return
+    if (!isReady || loading) return
     setError('')
     setLoading(true)
     try {
-      const result = await signIn.create({ identifier: email.trim(), password })
-      if (result.status === 'complete') {
-        await setActive({ session: result.createdSessionId })
+      // WHY: v3 create() returns { error } — status lives on the reactive signIn object
+      const { error: signInError } = await signIn.create({
+        identifier: email.trim(),
+        password,
+      })
+      if (signInError) {
+        setError(signInError.message)
+        return
+      }
+      if (signIn.status === 'complete') {
+        await setActive({ session: signIn.createdSessionId! })
         router.replace('/')
       }
-    } catch (err: unknown) {
-      const clerr = err as { errors?: { message: string }[] }
-      setError(clerr.errors?.[0]?.message ?? 'Sign in failed. Please try again.')
+    } catch {
+      setError('Sign in failed. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -94,9 +106,9 @@ export default function SignIn() {
             accessible
             accessibilityRole="button"
             accessibilityLabel="Sign in"
-            accessibilityState={{ disabled: loading || !isLoaded }}
+            accessibilityState={{ disabled: loading || !isReady }}
             onPress={handleSignIn}
-            disabled={loading || !isLoaded}
+            disabled={loading || !isReady}
             className="bg-coral rounded-xl items-center justify-center mb-4"
             style={{ minHeight: 52 }}
           >

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { View, Text, TouchableOpacity, ActivityIndicator, ScrollView, Alert } from 'react-native'
 import { useRouter } from 'expo-router'
-import { useUser } from '@clerk/clerk-expo'
+import { useUser } from '@clerk/expo'
 import * as SecureStore from 'expo-secure-store'
 import { useOnboardingStore } from '../../store/onboardingStore'
 import { useSupabaseWithAuth } from '../../hooks/useSupabaseWithAuth'

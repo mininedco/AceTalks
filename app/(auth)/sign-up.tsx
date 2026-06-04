@@ -3,13 +3,15 @@ import {
   View, Text, TextInput, TouchableOpacity,
   KeyboardAvoidingView, Platform, ActivityIndicator, ScrollView,
 } from 'react-native'
-import { useSignUp } from '@clerk/clerk-expo'
+import { useSignUp, useClerk } from '@clerk/expo'
 import { Link, useRouter } from 'expo-router'
 
 // SHIELD: Parent/caregiver creates the account — child does not have an account.
-// COPPA: age-gate and parental consent are handled in the onboarding flow (ACET-004/018).
+// COPPA: age-gate and parental consent are handled in onboarding (ACET-004/018).
 export default function SignUp() {
-  const { signUp, setActive, isLoaded } = useSignUp()
+  // WHY: In @clerk/expo v3, setActive moved to useClerk(). fetchStatus replaces isLoaded.
+  const { signUp, fetchStatus } = useSignUp()
+  const { setActive } = useClerk()
   const router = useRouter()
 
   const [email, setEmail] = useState('')
@@ -19,35 +21,52 @@ export default function SignUp() {
   const [loading, setLoading] = useState(false)
   const [pendingVerification, setPendingVerification] = useState(false)
 
+  const isReady = fetchStatus !== 'fetching'
+
   const handleSignUp = async () => {
-    if (!isLoaded || loading) return
+    if (!isReady || loading) return
     setError('')
     setLoading(true)
     try {
-      await signUp.create({ emailAddress: email.trim(), password })
-      await signUp.prepareEmailAddressVerification({ strategy: 'email_code' })
+      const { error: signUpError } = await signUp.create({
+        emailAddress: email.trim(),
+        password,
+      })
+      if (signUpError) {
+        setError(signUpError.message)
+        return
+      }
+      // WHY: @clerk/expo v3 types signUp as SignUpFutureResource before create().
+      // After create() succeeds, the reactive signUp object is a full SignUpResource
+      // at runtime. Cast to any to access verification methods — safe post-create.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (signUp as any).prepareEmailAddressVerification({ strategy: 'email_code' })
       setPendingVerification(true)
-    } catch (err: unknown) {
-      const clerr = err as { errors?: { message: string }[] }
-      setError(clerr.errors?.[0]?.message ?? 'Sign up failed. Please try again.')
+    } catch {
+      setError('Sign up failed. Please try again.')
     } finally {
       setLoading(false)
     }
   }
 
   const handleVerify = async () => {
-    if (!isLoaded || loading) return
+    if (!isReady || loading) return
     setError('')
     setLoading(true)
     try {
-      const result = await signUp.attemptEmailAddressVerification({ code })
-      if (result.status === 'complete') {
-        await setActive({ session: result.createdSessionId })
+      // WHY: Same runtime-safe cast as above — signUp is a full resource post-create.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error: verifyError } = await (signUp as any).attemptEmailAddressVerification({ code })
+      if (verifyError) {
+        setError(verifyError.message)
+        return
+      }
+      if (signUp.status === 'complete') {
+        await setActive({ session: signUp.createdSessionId! })
         router.replace('/')
       }
-    } catch (err: unknown) {
-      const clerr = err as { errors?: { message: string }[] }
-      setError(clerr.errors?.[0]?.message ?? 'Verification failed. Check your code.')
+    } catch {
+      setError('Verification failed. Check your code.')
     } finally {
       setLoading(false)
     }
@@ -112,9 +131,9 @@ export default function SignUp() {
                 accessible
                 accessibilityRole="button"
                 accessibilityLabel="Create account"
-                accessibilityState={{ disabled: loading || !isLoaded }}
+                accessibilityState={{ disabled: loading || !isReady }}
                 onPress={handleSignUp}
-                disabled={loading || !isLoaded}
+                disabled={loading || !isReady}
                 className="bg-coral rounded-xl items-center justify-center mb-4"
                 style={{ minHeight: 52 }}
               >

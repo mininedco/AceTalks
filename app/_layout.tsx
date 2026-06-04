@@ -1,4 +1,4 @@
-import { ClerkProvider, ClerkLoaded } from '@clerk/clerk-expo'
+import { ClerkProvider, ClerkLoaded } from '@clerk/expo'
 import * as SecureStore from 'expo-secure-store'
 import { PostHogProvider } from 'posthog-react-native'
 import { SafeAreaProvider } from 'react-native-safe-area-context'

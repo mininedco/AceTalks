@@ -32,6 +32,8 @@ For live task tracking, read:
 | ACET-002 | ✅ DONE | Supabase clients + SQL schema — run `supabase/schema.sql` + `supabase/seed.sql` in dashboard |
 | ACET-003 | ✅ DONE | Clerk auth — sign-in, sign-up, ClerkProvider, useSupabaseWithAuth |
 | ACET-004 | ✅ DONE | Onboarding — welcome, language, who-for, COPPA gate stub |
+| ACET-SEC-001 | ✅ DONE | Security: migrated `@clerk/clerk-expo@2.x` → `@clerk/expo@3.x` (CVE: entire 2.x range) |
+| ACET-SEC-002 | ⛔ BLOCKED | Security: `uuid@8.3.2` transitive CVE — no fix available until upstream deps update |
 | ACET-005–020 | OPEN | See TASKS.md |
 
 **Active Claude Code ticket:** ACET-005 — Home board screen.

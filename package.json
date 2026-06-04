@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "expo-router/entry",
   "dependencies": {
-    "@clerk/clerk-expo": "^2.19.31",
+    "@clerk/expo": "^3.3.1",
     "@sentry/react-native": "~7.11.0",
     "@supabase/supabase-js": "^2.107.0",
     "babel-preset-expo": "~56.0.0",
