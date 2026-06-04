@@ -1,12 +1,19 @@
-import { Tabs } from 'expo-router'
+import { useAuth } from '@clerk/clerk-expo'
+import { Redirect, Tabs } from 'expo-router'
 
-// TODO: ACET-005 — Add tab icons and style the tab bar with brand colors
 export default function TabsLayout() {
+  const { isSignedIn } = useAuth()
+
+  // Protect all tab routes — redirect to sign-in if not authenticated
+  if (!isSignedIn) return <Redirect href="/(auth)/sign-in" />
+
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: '#E8673B',
+        tabBarInactiveTintColor: '#9B8F88',
+        tabBarStyle: { backgroundColor: '#FFFFFF', borderTopColor: '#F0EBE6' },
       }}
     >
       <Tabs.Screen name="index" options={{ title: 'Home' }} />
