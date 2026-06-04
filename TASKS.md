@@ -715,6 +715,69 @@ function trackEvent(event: string, props?: object) {
 
 ---
 
+## Security tickets
+
+| # | Ticket | Priority | Status | Description |
+|---|---|---|---|---|
+| S1 | ACET-SEC-001 | **P0** | **OPEN** | Migrate `@clerk/clerk-expo@2.x` → `@clerk/expo@3.x` — entire 2.x range is vulnerable |
+| S2 | ACET-SEC-002 | **P2** | **BLOCKED** | `uuid@8.3.2` transitive CVE — no fix available until upstream deps update |
+
+---
+
+## ACET-SEC-001 — Clerk security migration — P0 OPEN
+
+**What:** GitHub Dependabot security advisory: `@clerk/clerk-expo` versions `>= 2.2.11 <= 2.19.35` are vulnerable. No patched `2.x` version exists. The fix is migrating to the `@clerk/expo@3.x` package (renamed + redesigned).
+
+**CVE range:** `@clerk/clerk-expo >= 2.2.11 <= 2.19.35` — all `2.x` affected.
+**Evidence:** Dependabot job `1397087679` — `security_update_not_found`, latest resolvable version `2.19.31` still in advisory range.
+
+**Files:**
+- `package.json` — remove `@clerk/clerk-expo`, add `@clerk/expo@^3`
+- `app/_layout.tsx` — update import
+- `app/index.tsx` — update import
+- `app/(auth)/sign-in.tsx` — rewrite for v3 API (`useClerk` for `setActive`)
+- `app/(auth)/sign-up.tsx` — rewrite for v3 API (cast post-create signUp resource)
+- `app/(auth)/_layout.tsx` — update import
+- `app/(tabs)/_layout.tsx` — update import
+- `app/(onboarding)/_layout.tsx` — update import
+- `app/(onboarding)/who-for.tsx` — update import
+- `hooks/useSupabaseWithAuth.ts` — update import
+
+**v3 API differences:**
+- `useSignIn()` returns `{ signIn, errors, fetchStatus }` — no `setActive`, no `isLoaded`
+- `setActive` comes from `useClerk()`
+- `isLoaded` replaced by `fetchStatus !== 'loading'`
+- `signIn.create()` returns `{ error: ClerkError | null }` — check `signIn.status` on reactive obj
+- `signUp.prepareEmailAddressVerification` / `attemptEmailAddressVerification` require casting post-create (TypeScript types `signUp` as `SignUpFutureResource` before create; cast to `any` with `// WHY:` is acceptable)
+
+**Acceptance criteria:**
+- [ ] `@clerk/clerk-expo` removed from `package.json`
+- [ ] `@clerk/expo@^3` present in `package.json`
+- [ ] Sign-in works on web (email + password)
+- [ ] Sign-up with email verification works on web
+- [ ] All Clerk imports updated to `@clerk/expo`
+- [ ] `npx tsc --noEmit` passes (zero errors, `any` cast emits ESLint warning — acceptable)
+
+---
+
+## ACET-SEC-002 — uuid transitive vulnerability — P2 BLOCKED
+
+**What:** `uuid@8.3.2` (transitive dependency) is flagged by the security advisory as vulnerable. Fix requires `uuid >= 14.0.0`. However, Dependabot reports this as `security_update_not_possible` because our direct dependencies constrain `uuid` to `8.x` — no direct upgrade path exists.
+
+**Evidence:** Dependabot job `1397087686` — "No patched version available for uuid" at `8.3.2`.
+
+**Root cause:** One or more packages in our dependency tree (`@sentry/react-native`, `expo-cli`, or similar) pin `uuid@8.x` as a peer or direct dep. Until those upstream packages update their own `uuid` dependency, we cannot resolve this.
+
+**Action required:** None currently. This is a transitive CVE in a dependency we don't control.
+**Resolution path:** Resolved automatically when upstream packages update `uuid` to `14.x`.
+**Risk assessment:** `uuid` is used for ID generation; the CVE relates to predictable UUID generation in certain environments. Review when upstream fix is available.
+
+**Acceptance criteria:**
+- [ ] *(Blocked)* Upstream dependency updates `uuid` to `>= 14.0.0`
+- [ ] Re-run `npm audit` after upstream update to confirm resolution
+
+---
+
 ## Bug tickets
 
 *None yet — this section will populate during Phase 0 development.*
