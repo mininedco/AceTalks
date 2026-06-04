@@ -37,10 +37,14 @@ For live task tracking, read:
 | ACET-005 | ✅ DONE | Home board screen — tile grid, language toggle, skeleton loading, empty state |
 | ACET-006 | ✅ DONE | Tile component — 80/96pt touch targets, press animation, accessibility full set |
 | ACET-007 | ✅ DONE | TTS — Azure Neural + Cloudflare R2 caching, server-side key, graceful fallback |
-| ACET-008 | 🚀 OPEN | Sentence strip — word pills, speak button, clear, persistent bar |
-| ACET-009–020 | OPEN | See TASKS.md |
+| ACET-008 | ✅ DONE | Sentence strip — removable word pills, speak + clear, sentenceStore |
+| ACET-009 | ✅ DONE | Board navigation — boardStore stack, back/home buttons, link-tile routing |
+| ACET-010 | 🚀 OPEN | Supabase real-time sync — board changes propagate across devices live |
+| ACET-011–020 | OPEN | See TASKS.md |
 
-**Active Claude Code ticket:** ACET-008 — Sentence strip.
+**Active Claude Code ticket:** ACET-010 — Supabase real-time sync.
+
+**⚠️ Manual step required:** Run `supabase/rls-fix.sql` in the Supabase SQL editor. The app cannot query boards or tiles until the RLS circular dependency is resolved.
 **Dedicated to:** Ace 🌟
 
 ### Dev server

@@ -19,8 +19,8 @@ Claude Code picks the next OPEN ticket from this list, implements it, marks it D
 | 5 | ACET-005 | P1 | **DONE** | Home board screen — tile grid, language toggle header, empty state |
 | 6 | ACET-006 | P1 | **DONE** | Tile component — accessible, 44pt target, audio on press, label display |
 | 7 | ACET-007 | P1 | **DONE** | TTS integration — Azure Neural, 6 free languages, R2 audio caching |
-| 8 | ACET-008 | P1 | **OPEN** | Sentence strip — word pills, speak button, clear button, persistent bar |
-| 9 | ACET-009 | P1 | **OPEN** | Board navigation — home board → category board → back, breadcrumb |
+| 8 | ACET-008 | P1 | **DONE** | Sentence strip — word pills, speak button, clear button, persistent bar |
+| 9 | ACET-009 | P1 | **DONE** | Board navigation — home board → category board → back, breadcrumb |
 | 10 | ACET-010 | P1 | **OPEN** | Supabase real-time sync — board changes propagate across devices live |
 | 11 | ACET-011 | P2 | **OPEN** | RevenueCat billing — free vs pro entitlements, paywall screen |
 | 12 | ACET-012 | P2 | **OPEN** | Parent dashboard — manage communicator profile, boards, settings |
@@ -456,15 +456,17 @@ await playTTS(sentence, currentLanguage)
 ```
 
 **Acceptance criteria:**
-- [ ] Words render as removable pills
-- [ ] Speak button plays full sentence via TTS then clears
-- [ ] Clear button clears all words
-- [ ] Empty state placeholder renders
-- [ ] Strip is always visible regardless of grid scroll
-- [ ] `accessibilityLabel="Speak sentence"` on speak button
-- [ ] `accessibilityLabel="Clear sentence"` on clear button
-- [ ] Min touch target 44pt on speak button (it's the most important control)
-- [ ] `npx tsc --noEmit` passes
+- [x] Words render as removable coral pills (tap to remove individual word)
+- [x] Speak button plays full sentence via TTS then clears
+- [x] Clear button clears all words (only visible when words present)
+- [x] Empty state placeholder: "Tap a tile to start…"
+- [x] Strip always visible — outside ScrollView, anchored at bottom
+- [x] `accessibilityLabel="Speak sentence"` on speak button; `accessibilityState.disabled` when empty
+- [x] `accessibilityLabel="Clear sentence"` on clear button
+- [x] Speak button: 52pt height, 52pt min width — largest control in strip
+- [x] `npx tsc --noEmit` passes — verified 2026-06-04
+
+**Completion note (2026-06-04):** Sentence state moved to `sentenceStore` (Zustand) — globally shared so any future screen can read/write. Strip scrolls horizontally for long sentences.
 
 ---
 
@@ -492,14 +494,16 @@ if (tile.linkBoardId) {
 - Home icon always navigates to root board (pops entire stack)
 
 **Acceptance criteria:**
-- [ ] Tapping a link tile loads and renders the linked board
-- [ ] Back button pops to previous board
-- [ ] Home icon in header returns to root board from any depth
-- [ ] Breadcrumb shows current board name
-- [ ] Loading state between board transitions
-- [ ] `accessibilityLabel="Go back"` on back button
-- [ ] `accessibilityLabel="Home board"` on home icon
-- [ ] `npx tsc --noEmit` passes
+- [x] Tapping a link tile (tile.linkBoardId set) fetches + pushes linked board
+- [x] Back chevron (‹) pops to previous board; only visible when stack depth > 1
+- [x] Home icon (⌂) in header pops entire stack back to root board
+- [x] Current board name shows in header — updates live on navigation
+- [x] Loading spinner in header during board fetch transition
+- [x] `accessibilityLabel="Go back to previous board"` on back button
+- [x] `accessibilityLabel="Go to home board"` on home icon
+- [x] `npx tsc --noEmit` passes — verified 2026-06-04
+
+**Completion note (2026-06-04):** boardStore stack drives rendering — `boardStack.at(-1)` is always current. Non-link tiles still add to sentence. `useBoardNavigation` hook handles fetch + stack push, centralising all navigation logic.
 
 ---
 

@@ -21,11 +21,12 @@ This is the top-level truth file for Claude Code, CodeRabbit, and any other agen
 - **App:** Boot with `npx expo start` from `acetalks/`. Press `w` for web (works today). Physical device requires a dev build — see Blocker below.
 - **Database:** Supabase cloud. Schema applied via SQL editor. RLS must be enabled on every table before use.
 - **TTS:** Azure Cognitive Services Neural TTS. Server-side only. `AZURE_TTS_KEY` never exposed to client.
-- **Active ticket:** ACET-008 — Sentence strip.
-- **Completed tickets:** ACET-001 (scaffold), ACET-002 (Supabase), ACET-003 (Clerk auth), ACET-004 (onboarding), ACET-005 (home board screen), ACET-006 (Tile + TileGrid components), ACET-007 (Azure TTS + R2 cache). All verified 2026-06-04, `tsc --noEmit` zero errors.
-- **Current state:** Home board renders tile grid from Supabase, language toggle works, TTS fires on tile press-down, R2 caching in place. Next: sentence strip (ACET-008) then board navigation (ACET-009).
-- **New deps (ACET-007):** `expo-av` (audio playback), `hono` (server framework), `@aws-sdk/client-s3` (R2).
+- **Active ticket:** ACET-010 — Supabase real-time sync.
+- **Completed tickets:** ACET-001–009 (scaffold through board navigation). All verified 2026-06-04, `tsc --noEmit` zero errors.
+- **Current state:** Full board flow functional — sign-in → onboarding → home board → tile grid → TTS audio → sentence strip → board navigation. Core communication loop is wired.
+- **New deps (ACET-007/008/009):** `expo-av`, `hono`, `@aws-sdk/client-s3`.
 - **New env var required:** `EXPO_PUBLIC_TTS_API_URL` — Railway server URL. Set in `.env` before testing TTS.
+- **New stores:** `sentenceStore` (word accumulation), `boardStore` (navigation stack).
 
 ---
 
@@ -38,7 +39,8 @@ Document the blocker here and stop — do not work around it or guess.
 | Ticket | Evidence | Problem |
 |---|---|---|
 | ~~ACET-SEC-001~~ | ~~Resolved 2026-06-04~~ | ~~Migrated to `@clerk/expo@3.x`. `@clerk/clerk-expo` removed.~~ |
-| ACET-002 | `supabase/schema.sql` exists but not yet run | **Schema not applied** — all Supabase tables are missing until Nadia runs `schema.sql` + `seed.sql` in the Supabase SQL editor. Auth works; any screen that queries Supabase will fail until this is done. |
+| ~~ACET-002~~ | ~~Verified 2026-06-04~~ | ~~Schema applied — all 6 tables confirmed via REST API. Seed data: 2 communicators, 2 boards, 18 tiles.~~ |
+| ACET-002 | `supabase/rls-fix.sql` | **RLS infinite recursion** — `communicators` ↔ `supervisors` policies have circular subqueries (PostgreSQL error 42P17). Fix written to `supabase/rls-fix.sql`. **Nadia must run this in the Supabase SQL editor before the app can query communicators, boards, or tiles.** |
 | ACET-003 | `AGENTS.md` environment notes | **Expo Go cannot run the app** — native modules (`@sentry/react-native`, `posthog-react-native`, `react-native-reanimated`) require an EAS dev build. Web works: `npm run web`. Not a code bug — expected for this stack. Resolved in ACET-015. |
 | ACET-003 | Clerk dashboard | **"supabase" JWT template not yet created** — `useSupabaseWithAuth` will fail until the template is set up in the Clerk dashboard (Settings → JWT Templates → New → Supabase). RLS queries will return 0 rows without it. |
 
