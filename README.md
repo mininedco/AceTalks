@@ -34,9 +34,13 @@ For live task tracking, read:
 | ACET-004 | ✅ DONE | Onboarding — welcome, language, who-for, COPPA gate stub |
 | ACET-SEC-001 | ✅ DONE | Security: migrated `@clerk/clerk-expo@2.x` → `@clerk/expo@3.x` (CVE: entire 2.x range) |
 | ACET-SEC-002 | ⛔ BLOCKED | Security: `uuid@8.3.2` transitive CVE — no fix available until upstream deps update |
-| ACET-005–020 | OPEN | See TASKS.md |
+| ACET-005 | ✅ DONE | Home board screen — tile grid, language toggle, skeleton loading, empty state |
+| ACET-006 | ✅ DONE | Tile component — 80/96pt touch targets, press animation, accessibility full set |
+| ACET-007 | ✅ DONE | TTS — Azure Neural + Cloudflare R2 caching, server-side key, graceful fallback |
+| ACET-008 | 🚀 OPEN | Sentence strip — word pills, speak button, clear, persistent bar |
+| ACET-009–020 | OPEN | See TASKS.md |
 
-**Active Claude Code ticket:** ACET-005 — Home board screen.
+**Active Claude Code ticket:** ACET-008 — Sentence strip.
 **Dedicated to:** Ace 🌟
 
 ### Dev server

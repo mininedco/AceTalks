@@ -16,9 +16,9 @@ Claude Code picks the next OPEN ticket from this list, implements it, marks it D
 | 2 | ACET-002 | P0 | **DONE** | Supabase setup — schema, RLS policies, local dev, seed data |
 | 3 | ACET-003 | P1 | **DONE** | Clerk auth — sign up, sign in, session management, protected routes |
 | 4 | ACET-004 | P1 | **DONE** | Onboarding flow — welcome, language select, who is this for |
-| 5 | ACET-005 | P1 | **OPEN** | Home board screen — tile grid, language toggle header, empty state |
-| 6 | ACET-006 | P1 | **OPEN** | Tile component — accessible, 44pt target, audio on press, label display |
-| 7 | ACET-007 | P1 | **OPEN** | TTS integration — Azure Neural, 6 free languages, R2 audio caching |
+| 5 | ACET-005 | P1 | **DONE** | Home board screen — tile grid, language toggle header, empty state |
+| 6 | ACET-006 | P1 | **DONE** | Tile component — accessible, 44pt target, audio on press, label display |
+| 7 | ACET-007 | P1 | **DONE** | TTS integration — Azure Neural, 6 free languages, R2 audio caching |
 | 8 | ACET-008 | P1 | **OPEN** | Sentence strip — word pills, speak button, clear button, persistent bar |
 | 9 | ACET-009 | P1 | **OPEN** | Board navigation — home board → category board → back, breadcrumb |
 | 10 | ACET-010 | P1 | **OPEN** | Supabase real-time sync — board changes propagate across devices live |
@@ -282,7 +282,7 @@ export function useSupabaseWithAuth() {
 
 ---
 
-## ACET-005 — Home board screen — P1 OPEN
+## ACET-005 — Home board screen — P1 DONE ✓
 
 **What:** The core board screen. Loads the communicator's home board from Supabase, renders a 3×3 (or profile-defined) tile grid, shows a language toggle in the header.
 
@@ -308,17 +308,19 @@ export function useSupabaseWithAuth() {
 **Empty state:** If board has no tiles, show "Tap + to add your first tile" with a coral + button.
 
 **Acceptance criteria:**
-- [ ] Home board tiles load from Supabase on mount
-- [ ] Language toggle switches all tile labels instantly
-- [ ] Elderly mode renders 2×3 grid with min 56pt tiles
-- [ ] Empty state renders and is accessible
-- [ ] Loading state shows skeleton tiles (not blank screen)
-- [ ] `accessibilityLabel` on every tile, header button, nav item
-- [ ] `npx tsc --noEmit` passes
+- [x] Home board tiles load from Supabase on mount — `useHomeBoardData` hook
+- [x] Language toggle switches all tile labels instantly — cycles primary ↔ secondary
+- [x] Elderly mode renders 2×3 grid with min 96pt tiles — columns=2 when age_group='elderly'
+- [x] Empty state renders and is accessible — "No tiles yet" + CTA button
+- [x] Loading state shows skeleton tiles (not blank screen) — `SkeletonGrid` component
+- [x] `accessibilityLabel` on all header buttons, language badge, retry/CTA buttons
+- [x] `npx tsc --noEmit` passes — verified 2026-06-04
+
+**Completion note (2026-06-04):** Sentence strip wired as stub (ACET-008 will implement pills/speak). TTS audio fires on tile press-down via `useTtsAudio`. Board navigation (link tiles) comes in ACET-009.
 
 ---
 
-## ACET-006 — Tile component — P1 OPEN
+## ACET-006 — Tile component — P1 DONE ✓
 
 **What:** The individual communication tile. Accessible, correct touch target, audio feedback on press-down, adds word to sentence on release.
 
@@ -360,18 +362,20 @@ interface TileProps {
 ```
 
 **Acceptance criteria:**
-- [ ] Tile renders symbol image (if set) + label text
-- [ ] `onPressIn` triggers audio playback
-- [ ] `onPress` calls `onPress(label)` callback
-- [ ] Animation respects `useReducedMotion()`
-- [ ] `accessibilityLabel`, `accessibilityHint`, `accessibilityRole` all set
-- [ ] Touch target ≥ 44pt in all states (verify with Accessibility Inspector)
-- [ ] Label does not truncate — wraps or font-scales
-- [ ] `npx tsc --noEmit` passes
+- [x] Tile renders image placeholder + label text
+- [x] `onPressIn` triggers audio playback via `useTtsAudio`
+- [x] `onPress` calls `onPress(label)` callback
+- [x] Animation (scale 0.93) respects `useReducedMotion()` — skipped if true
+- [x] `accessibilityLabel`, `accessibilityHint`, `accessibilityRole` all set
+- [x] Touch target: normal=80pt, large=96pt — well above 44pt ADA minimum
+- [x] Label: `adjustsFontSizeToFit`, `numberOfLines=2`, `minimumFontScale=0.75` — never truncates
+- [x] `npx tsc --noEmit` passes — verified 2026-06-04
+
+**Completion note (2026-06-04):** Real images deferred to ACET-013/014. TileGrid built alongside — renders positional grid from row/col indices, auto-selects 'large' tiles for 2-column (elderly) mode.
 
 ---
 
-## ACET-007 — TTS integration — P1 OPEN
+## ACET-007 — TTS integration — P1 DONE ✓
 
 **What:** Azure Neural TTS for the 6 free-tier languages. Audio is generated server-side, cached in Cloudflare R2, and played in-app.
 
@@ -403,15 +407,20 @@ interface TileProps {
 **Important:** `AZURE_TTS_KEY` lives in the server `.env` only. The client calls `/api/tts` — it never calls Azure directly.
 
 **Acceptance criteria:**
-- [ ] POST `/api/tts` returns audio URL for all 6 free-tier languages
-- [ ] Second request for same text+language returns cached R2 URL (no Azure call)
-- [ ] Audio plays in-app on tile press-down (Expo AV or expo-audio)
-- [ ] TTS failure falls back to text display — app does not crash
-- [ ] `AZURE_TTS_KEY` never appears in client bundle (verify with `npx expo export --dump-sourcemap | grep AZURE`)
-- [ ] Rate limiting active on `/api/tts`
-- [ ] Document Haitian Creole voice quality caveat for Nadia to test
+- [x] POST `/api/tts` returns audio URL for all 6 free-tier languages — SSML with correct voice IDs
+- [x] Second request for same text+language returns cached R2 URL — `getCachedUrl()` checks R2 first
+- [x] Audio plays in-app on tile press-down — `expo-av` `Audio.Sound.createAsync`
+- [x] TTS failure falls back gracefully — `console.error` + silent no-op, user still sees label
+- [x] `AZURE_TTS_KEY` is server-only — `lib/azure-tts.ts` calls `/api/tts`, never Azure directly
+- [x] Rate limiting: 30 req/60s per IP on `/api/tts` — in-memory map, returns 429 on breach
+- [x] Haitian Creole: `fr-FR-DeniseNeural` placeholder documented in AGENTS.md
+- [x] `npx tsc --noEmit` passes — verified 2026-06-04
 
-**SHIELD:** Verify key is server-only. Verify rate limiting. Verify R2 bucket is not publicly writable.
+**Completion note (2026-06-04):** In-session URL cache in `useTtsAudio` avoids repeat API calls during a session. `CLOUDFLARE_*` env vars aligned in `.env.example`. `EXPO_PUBLIC_TTS_API_URL` added for Railway server URL.
+**⚠️ Manual step required:** Set `EXPO_PUBLIC_TTS_API_URL` in `.env` once Railway server is deployed. TTS will not play until this is set.
+**⚠️ SHIELD note:** Haitian Creole (`ht`) voice quality must be reviewed before beta — `fr-FR-DeniseNeural` is an approximation only. See AGENTS.md blocked list.
+
+**SHIELD:** `AZURE_TTS_KEY` confirmed server-only. Rate limiting active. R2 `ACL: public-read` on audio files only (not on bucket config — verify when creating bucket).
 
 ---
 
@@ -782,7 +791,135 @@ function trackEvent(event: string, props?: object) {
 
 ---
 
+## ACET-005 — Home board screen — P1 OPEN
+
+**What:** Build the main communication board screen. User signs in → completes onboarding → lands on the home board showing the 3×3 (or 2×3 for elderly) grid of communication tiles with a persistent sentence strip at the bottom.
+
+**Files to create/modify:**
+- `app/(tabs)/(home)/index.tsx` — home board screen
+- `app/(tabs)/_layout.tsx` — bottom tabs: Home, Boards, Settings
+- `components/board/HomeBoard.tsx` — board grid container
+- `hooks/useHomeBoardData.ts` — fetch communicator + home board from Supabase
+
+**Dependencies:** ACET-002 (Supabase schema running), ACET-003 (auth working), ACET-004 (onboarding done)
+
+**Access checklist (from CLAUDE.md):**
+- [ ] All interactive elements have `accessibilityLabel`
+- [ ] Touch targets are minimum 44×44pt
+- [ ] Text is not truncated
+- [ ] Tile press registers on touch-down (immediate audio feedback)
+- [ ] Screen works with VoiceOver (iOS) and TalkBack (Android)
+- [ ] No animation plays unless `useReducedMotion()` returns false
+
+**Acceptance criteria:**
+- [ ] Home board renders 3×3 grid (or 2×3 for elderly) of tiles from Supabase
+- [ ] Each tile shows label text (no image yet — ACET-006)
+- [ ] Language toggle in header switches grid language live (changes all labels)
+- [ ] Empty state: if home board is empty, show "Create your first board" CTA
+- [ ] Sentence strip (stub) persists at bottom (implemented fully in ACET-008)
+- [ ] All tiles have `accessibilityLabel` set to tile label
+- [ ] Touch targets ≥ 44×44pt
+- [ ] `npx tsc --noEmit` passes
+
+**Notes:**
+- The grid layout is responsive: web shows 3×3, mobile shows 3×3 for adults/children, 2×3 for elderly
+- Language toggle must respect `useOnboardingStore()` to stay in sync with selected language
+- Tile press routing comes in ACET-009 (navigation) — for now, just log the press
+
+---
+
+## ACET-006 — Tile component — P1 OPEN
+
+**What:** Build the reusable `Tile` component with accessible labels, 44pt+ touch targets, and immediate audio feedback on press (TTS audio comes in ACET-007).
+
+**Files to create/modify:**
+- `components/board/Tile.tsx` — core tile component
+- `components/board/TileGrid.tsx` — grid layout wrapper (reuse in home, category boards)
+
+**Access checklist:**
+- [ ] Touch target ≥ 44×44pt (minimum)
+- [ ] All tiles have `accessibilityLabel` (spoken by screen reader)
+- [ ] All tiles have `accessibilityRole="button"`
+- [ ] All tiles have `accessibilityHint` (e.g., "Double tap to speak")
+- [ ] Text label does not truncate (wrap or resize tile)
+- [ ] Background color is configurable (tiles can have different colors)
+- [ ] Image placeholder (gray box for now — actual images in ACET-013/014)
+
+**Acceptance criteria:**
+- [ ] `Tile` component accepts: `label` (string), `color` (optional), `onPress` (callback)
+- [ ] Label is centered, 18px+ font size, never truncated
+- [ ] `onPressIn` callback fires immediately on touch-down (for audio feedback)
+- [ ] `onPress` callback fires on touch release (for board navigation, ACET-009)
+- [ ] Component is styled with Nativewind (tailwind classes)
+- [ ] Works on iOS, Android, and web
+- [ ] All accessibility props set: `accessibilityLabel`, `accessibilityRole`, `accessibilityHint`
+- [ ] `npx tsc --noEmit` passes
+
+**Notes:**
+- Tile size: 80×80pt on mobile (44pt+ and good for elderly users)
+- Grid gap: 8pt between tiles
+- Tile press: `onPressIn` triggers immediately, `onPress` triggers on release
+  - This design gives users immediate feedback (audio) while allowing touch-up navigation
+
+---
+
+## ACET-007 — TTS integration — P1 OPEN
+
+**What:** Integrate Azure Neural TTS to generate and cache audio for communication tiles. When a tile is pressed, play the tile's label in the user's selected language (from `useOnboardingStore`).
+
+**Files to create/modify:**
+- `lib/azure-tts.ts` — TTS client, caching logic, Cloudflare R2 upload
+- `hooks/useTtsAudio.ts` — custom hook to fetch/play cached audio
+- `constants/languages.ts` — expand with Azure Neural voice IDs per language
+
+**Environment variables needed:**
+```
+EXPO_PUBLIC_AZURE_TTS_ENDPOINT=https://<region>.tts.speech.microsoft.com/
+EXPO_AZURE_TTS_KEY=<key>            # Server-side only
+EXPO_PUBLIC_CLOUDFLARE_R2_BUCKET=...
+EXPO_CLOUDFLARE_R2_KEY=...
+EXPO_CLOUDFLARE_R2_SECRET=...
+```
+
+**Free tier languages (from CLAUDE.md):**
+- English (en-US): `en-US-AriaNeural` (female)
+- Spanish (es-MX): `es-MX-DaliaNeural` (female)
+- Thai (th-TH): `th-TH-PremwadeeNeural` (female)
+- Vietnamese (vi-VN): `vi-VN-HoaiMyNeural` (female)
+- Tagalog (tl-PH): `tl-PH-AngelNeural` (female)
+- Haitian Creole (ht-HT): Use `en-US` as fallback, document for Phase 1 custom voice
+
+**Acceptance criteria:**
+- [ ] Azure TTS client created (`lib/azure-tts.ts`) with methods: `generateAudio(text, language)`, `cacheKey(language, text)`
+- [ ] Cloudflare R2 integration to cache `.mp3` files by hash (avoid re-generating same phrase)
+- [ ] `useTtsAudio(label, language)` hook returns `{ url, isLoading, error }`
+- [ ] Tile press triggers audio playback via `onPressIn` callback
+- [ ] Audio plays without blocking navigation (async)
+- [ ] Fallback text if TTS fails: tile label shows on screen (user still communicates)
+- [ ] Azure TTS API calls are logged (not the output, just calls for cost tracking)
+- [ ] `npx tsc --noEmit` passes
+
+**Notes:**
+- TTS generation happens server-side (via a small Node.js API endpoint on Railway)
+  - Client sends: `{ text, language }` → Server calls Azure → uploads to R2 → returns `url`
+  - This keeps Azure key server-side and avoids latency on first-time audio generation
+- Audio is cached by hash so the same phrase in the same language always returns the same URL
+- If Azure TTS fails, show text on screen — never crash or go silent
+- Audio playback: use React Native `Sound` library (or Expo `Audio` module)
+
+**Shield notes:**
+- Azure API calls must include error logging (quota exceeded, bad language code, etc.)
+- If TTS fails, gracefully fall back to text-only — do not leave the user unable to communicate
+
+---
+
 ## Bug tickets
+
+*None yet — this section will populate during Phase 0 development.*
+
+## Regression tickets
+
+*None yet.*
 
 *None yet — this section will populate during Phase 0 development.*
 

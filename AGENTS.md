@@ -1,6 +1,6 @@
 # AGENTS.md — AceTalks
 ### Master context file — read by ALL AI agents, tools, and assistants.
-### Last updated: 2026-06-03 | Maintained by: Nadia (founder)
+### Last updated: 2026-06-04 | Maintained by: Nadia (founder)
 
 Read this file completely before writing a single line of code or making any claim about the codebase.
 This is the top-level truth file for Claude Code, CodeRabbit, and any other agent.
@@ -21,9 +21,11 @@ This is the top-level truth file for Claude Code, CodeRabbit, and any other agen
 - **App:** Boot with `npx expo start` from `acetalks/`. Press `w` for web (works today). Physical device requires a dev build — see Blocker below.
 - **Database:** Supabase cloud. Schema applied via SQL editor. RLS must be enabled on every table before use.
 - **TTS:** Azure Cognitive Services Neural TTS. Server-side only. `AZURE_TTS_KEY` never exposed to client.
-- **Active ticket:** ACET-005 — Home board screen.
-- **Completed tickets:** ACET-001 (scaffold), ACET-002 (Supabase), ACET-003 (Clerk auth), ACET-004 (onboarding). All verified 2026-06-03/04, `tsc --noEmit` zero errors, web bundle clean.
-- **Current state:** Auth + onboarding flow complete. Supabase SQL pending manual run in dashboard. Sign-in → onboarding → home board route is wired. ACET-005 starts the board engine.
+- **Active ticket:** ACET-008 — Sentence strip.
+- **Completed tickets:** ACET-001 (scaffold), ACET-002 (Supabase), ACET-003 (Clerk auth), ACET-004 (onboarding), ACET-005 (home board screen), ACET-006 (Tile + TileGrid components), ACET-007 (Azure TTS + R2 cache). All verified 2026-06-04, `tsc --noEmit` zero errors.
+- **Current state:** Home board renders tile grid from Supabase, language toggle works, TTS fires on tile press-down, R2 caching in place. Next: sentence strip (ACET-008) then board navigation (ACET-009).
+- **New deps (ACET-007):** `expo-av` (audio playback), `hono` (server framework), `@aws-sdk/client-s3` (R2).
+- **New env var required:** `EXPO_PUBLIC_TTS_API_URL` — Railway server URL. Set in `.env` before testing TTS.
 
 ---
 
