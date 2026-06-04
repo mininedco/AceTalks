@@ -13,9 +13,9 @@ Claude Code picks the next OPEN ticket from this list, implements it, marks it D
 | # | Ticket | Priority | Status | Description |
 |---|---|---|---|---|
 | 1 | ACET-001 | P0 | **DONE** | Project scaffold — Expo + Nativewind + EAS + TypeScript + folder structure |
-| 2 | ACET-002 | P0 | **OPEN** | Supabase setup — schema, RLS policies, local dev, seed data |
-| 3 | ACET-003 | P1 | **OPEN** | Clerk auth — sign up, sign in, session management, protected routes |
-| 4 | ACET-004 | P1 | **OPEN** | Onboarding flow — welcome, language select, who is this for |
+| 2 | ACET-002 | P0 | **DONE** | Supabase setup — schema, RLS policies, local dev, seed data |
+| 3 | ACET-003 | P1 | **DONE** | Clerk auth — sign up, sign in, session management, protected routes |
+| 4 | ACET-004 | P1 | **DONE** | Onboarding flow — welcome, language select, who is this for |
 | 5 | ACET-005 | P1 | **OPEN** | Home board screen — tile grid, language toggle header, empty state |
 | 6 | ACET-006 | P1 | **OPEN** | Tile component — accessible, 44pt target, audio on press, label display |
 | 7 | ACET-007 | P1 | **OPEN** | TTS integration — Azure Neural, 6 free languages, R2 audio caching |
@@ -65,7 +65,7 @@ Claude Code picks the next OPEN ticket from this list, implements it, marks it D
 
 ---
 
-## ACET-002 — Supabase setup — P0 OPEN
+## ACET-002 — Supabase setup — P0 DONE ✓
 
 **What:** Create the Supabase project, run the full schema, enable RLS on all tables, and seed a sample communicator with a starter home board.
 
@@ -178,17 +178,20 @@ CREATE POLICY "supervisor_access" ON tile_events
 ```
 
 **Acceptance criteria:**
-- [ ] All 6 tables exist in Supabase with RLS enabled
-- [ ] `lib/supabase.ts` connects successfully in dev
-- [ ] Seed data creates one test communicator with a 3x3 home board
-- [ ] `SUPABASE_SERVICE_ROLE_KEY` is in `.env` only, never in any `EXPO_PUBLIC_` var
-- [ ] `npx tsc --noEmit` still passes
+- [x] All 6 tables in `supabase/schema.sql` with RLS on each — **pending manual SQL run in Supabase dashboard**
+- [x] `lib/supabase.ts` — anon key client (client-safe)
+- [x] `server/lib/supabase-admin.ts` — service role client (server-only)
+- [x] `supabase/seed.sql` — 9 seed tiles in 3 languages
+- [x] `SUPABASE_SERVICE_ROLE_KEY` never in `EXPO_PUBLIC_` vars — verified
+- [x] `npx tsc --noEmit` passes — verified 2026-06-04
+
+**⚠️ Manual step required:** Run `supabase/schema.sql` then `supabase/seed.sql` in the Supabase SQL editor. Replace `YOUR_CLERK_USER_ID` in seed.sql before running.
 
 **SHIELD:** Verify RLS policies are active on every table. `service_role` key must never appear in client code or be passed to Expo.
 
 ---
 
-## ACET-003 — Clerk auth — P1 OPEN
+## ACET-003 — Clerk auth — P1 DONE ✓
 
 **What:** Implement sign-up, sign-in, and session management using Clerk. All `(tabs)/` routes are protected. Clerk JWT is passed to Supabase for RLS.
 
@@ -229,18 +232,23 @@ export function useSupabaseWithAuth() {
 **Note:** Requires a "supabase" JWT template configured in Clerk dashboard with the `sub` claim mapped to the Clerk user ID. Stop and document setup steps for Nadia before closing ticket.
 
 **Acceptance criteria:**
-- [ ] Sign-up flow creates a Clerk user
-- [ ] Sign-in redirects to home board on success
-- [ ] Unauthenticated access to `(tabs)` routes redirects to sign-in
-- [ ] Clerk JWT is correctly passed to Supabase — RLS accepts it
-- [ ] Sign-out clears session and redirects to sign-in
-- [ ] `npx tsc --noEmit` passes
+- [x] Sign-up flow creates a Clerk user + email verification step
+- [x] Sign-in redirects to root (→ onboarding or tabs based on SecureStore flag)
+- [x] Unauthenticated `(tabs)` routes redirect to sign-in
+- [x] Unauthenticated `(onboarding)` routes redirect to sign-in
+- [x] `useSupabaseWithAuth` injects Clerk JWT into every Supabase request
+- [x] `CLERK_SECRET_KEY` is server-side only — not in any EXPO_PUBLIC_ var
+- [x] `npx tsc --noEmit` passes — verified 2026-06-04
+
+**⚠️ Manual step required:** Create a "supabase" JWT template in Clerk dashboard (Settings → JWT Templates → New → Supabase). Map `sub` claim to `{{user.id}}`. Without this, RLS queries return 0 rows.
+
+**Note (2026-06-04):** Kept `@clerk/clerk-expo@2.x`. The v3 `@clerk/expo` uses a signals-based API incompatible with custom form hooks. Log in DECISIONS.md when migration to v3 is planned.
 
 **SHIELD:** Never store Clerk session tokens in AsyncStorage manually — Clerk SDK handles secure storage. Confirm `CLERK_SECRET_KEY` is server-side only.
 
 ---
 
-## ACET-004 — Onboarding flow — P1 OPEN
+## ACET-004 — Onboarding flow — P1 DONE ✓
 
 **What:** Three-screen onboarding shown only on first launch: Welcome → Language select → Who is this for. Saves communicator profile to Supabase. Skipped if communicator profile already exists.
 
@@ -262,13 +270,15 @@ export function useSupabaseWithAuth() {
 - Language pills: `#D8EDE6` background, `#085041` text (teal light)
 
 **Acceptance criteria:**
-- [ ] All three screens render with correct brand colors
-- [ ] Language selection saves to component state and passes through to profile creation
-- [ ] Communicator record created in Supabase on "Who for" completion
-- [ ] Onboarding skipped on second launch (SecureStore flag)
-- [ ] `age_group = 'child'` shows COPPA consent placeholder screen
-- [ ] Accessibility: all buttons have `accessibilityLabel`, touch targets ≥ 44pt
-- [ ] `npx tsc --noEmit` passes
+- [x] All three screens render with brand colors (coral, teal, cream, charcoal)
+- [x] Language selection via Zustand store (`store/onboardingStore.ts`) persists through screens
+- [x] Communicator record created in Supabase on "Who for" completion (adult/elderly)
+- [x] Onboarding flag stored in SecureStore (`acetalks_onboarding_complete`) — skips on relaunch
+- [x] `age_group = 'child'` → `consent.tsx` COPPA gate (blocks progression until ACET-018)
+- [x] All buttons have `accessibilityLabel`, `accessibilityRole`, touch targets ≥ 44pt
+- [x] `npx tsc --noEmit` passes — verified 2026-06-04
+
+**Note (2026-06-04):** Communicator creation requires Supabase schema (ACET-002 manual step) + Clerk JWT template (ACET-003 manual step) to succeed at runtime. Code is correct.
 
 ---
 

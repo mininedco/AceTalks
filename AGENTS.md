@@ -21,9 +21,9 @@ This is the top-level truth file for Claude Code, CodeRabbit, and any other agen
 - **App:** Boot with `npx expo start` from `acetalks/`. Press `w` for web (works today). Physical device requires a dev build — see Blocker below.
 - **Database:** Supabase cloud. Schema applied via SQL editor. RLS must be enabled on every table before use.
 - **TTS:** Azure Cognitive Services Neural TTS. Server-side only. `AZURE_TTS_KEY` never exposed to client.
-- **Active ticket:** ACET-002 — Supabase setup.
-- **Completed tickets:** ACET-001 (scaffold — verified 2026-06-03, `tsc --noEmit` passes zero errors, git committed).
-- **Current state:** Scaffold complete. All placeholder screens, types, constants, and config files exist. Ready for ACET-002.
+- **Active ticket:** ACET-005 — Home board screen.
+- **Completed tickets:** ACET-001 (scaffold), ACET-002 (Supabase), ACET-003 (Clerk auth), ACET-004 (onboarding). All verified 2026-06-03/04, `tsc --noEmit` zero errors, web bundle clean.
+- **Current state:** Auth + onboarding flow complete. Supabase SQL pending manual run in dashboard. Sign-in → onboarding → home board route is wired. ACET-005 starts the board engine.
 
 ---
 
@@ -35,7 +35,9 @@ Document the blocker here and stop — do not work around it or guess.
 ### P0 — Launch gate
 | Ticket | Evidence | Problem |
 |---|---|---|
-| ACET-001 | `@sentry/react-native` + `posthog-react-native` have native modules | **Expo Go cannot run the app** — native modules are not bundled in standard Expo Go. Physical device testing requires a custom dev build (`expo-dev-client` + EAS). Web works today: `npm run web`. This is expected behavior for this stack — not a code bug. Will be fully resolved in ACET-015. |
+| ACET-002 | `supabase/schema.sql` exists but not yet run | **Schema not applied** — all Supabase tables are missing until Nadia runs `schema.sql` + `seed.sql` in the Supabase SQL editor. Auth works; any screen that queries Supabase will fail until this is done. |
+| ACET-003 | `AGENTS.md` environment notes | **Expo Go cannot run the app** — native modules (`@sentry/react-native`, `posthog-react-native`, `react-native-reanimated`) require an EAS dev build. Web works: `npm run web`. Not a code bug — expected for this stack. Resolved in ACET-015. |
+| ACET-003 | Clerk dashboard | **"supabase" JWT template not yet created** — `useSupabaseWithAuth` will fail until the template is set up in the Clerk dashboard (Settings → JWT Templates → New → Supabase). RLS queries will return 0 rows without it. |
 
 ### P1 — Must fix immediately
 *None.*

@@ -33,6 +33,9 @@ yarn-error.*
 # Claude Code project settings
 .claude/
 
+# Clerk reference project (not part of the app)
+clerk-expo/
+
 # local env files
 .env
 .env*.local
