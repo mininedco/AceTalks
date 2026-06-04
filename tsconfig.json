@@ -13,5 +13,9 @@
       "@types/*": ["./types/*"],
       "@constants/*": ["./constants/*"]
     }
-  }
+  },
+  "exclude": [
+    "node_modules",
+    "clerk-expo"
+  ]
 }
