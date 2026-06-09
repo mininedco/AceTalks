@@ -1,11 +1,13 @@
 // POST /api/tts
 // body: { text: string, language: LanguageCode }
 // SHIELD: AZURE_TTS_KEY is server-side only — never returned to client.
-// SHIELD: Rate limited to 30 req/min per IP to prevent quota abuse.
+// SHIELD: Rate limited via Upstash Redis sliding window (30 req/60s per IP).
+//         Persists across Railway container restarts — unlike an in-memory Map.
 
 import { Hono } from 'hono'
 import { ttsKey, getCachedUrl, uploadAudio } from '../../lib/r2-cache'
 import { getLanguage } from '../../constants/languages'
+import { getTtsRatelimit } from '../lib/redis'
 import type { LanguageCode } from '../../types'
 import { z } from 'zod'
 
@@ -16,29 +18,28 @@ const bodySchema = z.object({
   language: z.string(),
 })
 
-// Simple in-memory rate limiter (per IP, 30 req/60s)
-// WHY: Prevents a single user from exhausting the Azure TTS free tier quota.
-const rateLimitMap = new Map<string, { count: number; reset: number }>()
-const RATE_LIMIT = 30
-const WINDOW_MS = 60_000
-
-function checkRateLimit(ip: string): boolean {
-  const now = Date.now()
-  const entry = rateLimitMap.get(ip)
-  if (!entry || now > entry.reset) {
-    rateLimitMap.set(ip, { count: 1, reset: now + WINDOW_MS })
-    return true
-  }
-  if (entry.count >= RATE_LIMIT) return false
-  entry.count++
-  return true
-}
-
 app.post('/', async (c) => {
-  const ip = c.req.header('x-forwarded-for') ?? c.req.header('x-real-ip') ?? 'unknown'
+  const ip =
+    c.req.header('x-forwarded-for')?.split(',')[0].trim() ??
+    c.req.header('x-real-ip') ??
+    'unknown'
 
-  if (!checkRateLimit(ip)) {
-    return c.json({ error: 'Rate limit exceeded. Try again in a minute.' }, 429)
+  // WHY: Upstash Redis sliding window survives container restarts.
+  // Falls back to allowing the request if Redis is unreachable (graceful degradation)
+  // so TTS never goes down due to a Redis outage.
+  try {
+    const ratelimit = getTtsRatelimit()
+    const { success, remaining } = await ratelimit.limit(ip)
+    if (!success) {
+      return c.json(
+        { error: 'Rate limit exceeded. Try again in a minute.' },
+        429,
+        { 'X-RateLimit-Remaining': String(remaining) }
+      )
+    }
+  } catch (err) {
+    // Redis unavailable — log and continue (graceful degradation)
+    console.error('[TTS] Rate limit check failed (Redis unavailable)', err)
   }
 
   const parsed = bodySchema.safeParse(await c.req.json())
@@ -71,13 +72,10 @@ app.post('/', async (c) => {
     return c.json({ error: 'TTS service unavailable.' }, 503)
   }
 
-  const ssml = `
-    <speak version="1.0" xml:lang="${lang}" xmlns="http://www.w3.org/2001/10/synthesis">
-      <voice name="${langConfig.azureVoice}">
-        ${text.replace(/[<>&"]/g, (ch) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[ch] ?? ch))}
-      </voice>
-    </speak>
-  `.trim()
+  const xmlEscape = (s: string) =>
+    s.replace(/[<>&"]/g, (ch) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[ch] ?? ch))
+
+  const ssml = `<speak version="1.0" xml:lang="${lang}" xmlns="http://www.w3.org/2001/10/synthesis"><voice name="${langConfig.azureVoice}">${xmlEscape(text)}</voice></speak>`
 
   const azureRes = await fetch(
     `https://${azureRegion}.tts.speech.microsoft.com/cognitiveservices/v1`,
