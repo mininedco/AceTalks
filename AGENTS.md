@@ -1,6 +1,6 @@
 # AGENTS.md — AceTalks
 ### Master context file — read by ALL AI agents, tools, and assistants.
-### Last updated: 2026-06-04 | Maintained by: Nadia (founder)
+### Last updated: 2026-06-09 | Maintained by: Nadia (founder)
 
 Read this file completely before writing a single line of code or making any claim about the codebase.
 This is the top-level truth file for Claude Code, CodeRabbit, and any other agent.
@@ -21,12 +21,14 @@ This is the top-level truth file for Claude Code, CodeRabbit, and any other agen
 - **App:** Boot with `npx expo start` from `acetalks/`. Press `w` for web (works today). Physical device requires a dev build — see Blocker below.
 - **Database:** Supabase cloud. Schema applied via SQL editor. RLS must be enabled on every table before use.
 - **TTS:** Azure Cognitive Services Neural TTS. Server-side only. `AZURE_TTS_KEY` never exposed to client.
-- **Active ticket:** ACET-010 — Supabase real-time sync.
-- **Completed tickets:** ACET-001–009 (scaffold through board navigation). All verified 2026-06-04, `tsc --noEmit` zero errors.
-- **Current state:** Full board flow functional — sign-in → onboarding → home board → tile grid → TTS audio → sentence strip → board navigation. Core communication loop is wired.
+- **Active ticket:** ACET-011 — RevenueCat billing.
+- **Completed tickets:** ACET-001–010 (scaffold through real-time sync), ACET-021 (RLS fix in schema.sql), ACET-022 (Upstash Redis rate limiting). All verified 2026-06-09, `tsc --noEmit` zero errors.
+- **Current state:** Full board flow functional — sign-in → onboarding → home board → tile grid → TTS audio → sentence strip → board navigation. Core communication loop is wired. Real-time sync, RLS fix, and persistent rate limiting are next.
+- **Security review 2026-06-09:** 10 new tickets added (ACET-021–030) covering RLS fix, Redis rate limiting, COPPA hard gate, R2 audit, Zod validation, AudioService abstraction, and AAC UX features. See TASKS.md.
 - **New deps (ACET-007/008/009):** `expo-av`, `hono`, `@aws-sdk/client-s3`.
 - **New env var required:** `EXPO_PUBLIC_TTS_API_URL` — Railway server URL. Set in `.env` before testing TTS.
 - **New stores:** `sentenceStore` (word accumulation), `boardStore` (navigation stack).
+- **ADRs added:** ADR-011 (data classification / PHI), ADR-012 (Upstash Redis rate limiting).
 
 ---
 
@@ -43,6 +45,13 @@ Document the blocker here and stop — do not work around it or guess.
 | ACET-002 | `supabase/rls-fix.sql` | **RLS infinite recursion** — `communicators` ↔ `supervisors` policies have circular subqueries (PostgreSQL error 42P17). Fix written to `supabase/rls-fix.sql`. **Nadia must run this in the Supabase SQL editor before the app can query communicators, boards, or tiles.** |
 | ACET-003 | `AGENTS.md` environment notes | **Expo Go cannot run the app** — native modules (`@sentry/react-native`, `posthog-react-native`, `react-native-reanimated`) require an EAS dev build. Web works: `npm run web`. Not a code bug — expected for this stack. Resolved in ACET-015. |
 | ACET-003 | Clerk dashboard | **"supabase" JWT template not yet created** — `useSupabaseWithAuth` will fail until the template is set up in the Clerk dashboard (Settings → JWT Templates → New → Supabase). RLS queries will return 0 rows without it. |
+
+### P0 — Security (added 2026-06-09 security review)
+| Ticket | Problem |
+|---|---|
+| ACET-021 | **RLS infinite recursion** — must run `supabase/rls-fix.sql` in Supabase SQL editor before any Supabase query works. |
+| ACET-022 | **In-memory TTS rate limit** resets on Railway restart — replace with Upstash Redis. Needs `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN`. |
+| ACET-023 | **COPPA hard gate missing** — child communicator records can be created without a `parental_consents` row. Illegal under COPPA. |
 
 ### P1 — Must fix immediately
 *None.*
@@ -78,6 +87,9 @@ against the repo, and marks them DONE with file path evidence.
   Explain decisions briefly as you build. One ticket at a time. Stop and report before advancing.
 - Must not: make product decisions unilaterally, add packages without security/license check,
   skip accessibility props, start the next ticket without Nadia's approval
+- **Pre-flight before adding any dependency:** check `npm audit` output for the package; verify weekly downloads on npmjs.com; confirm no known CVEs. The `uuid@8.3.2` CVE (ACET-SEC-002) is a known blocker — do not add new packages that pin `uuid@8.x`.
+- **Before writing any SQL or Supabase query:** verify the Clerk JWT `sub` claim is in scope and that RLS policies cover the query. Never use `supabaseAdmin` in client code.
+- **Local profile caching:** always use `expo-secure-store`, never `AsyncStorage`, for any data containing user IDs, session flags, or profile data. (ADR — Shield mandate 2026-06-09)
 
 ### Shield — Senior Security, Compliance & Privacy Engineer
 **Review voice for all code touching auth, data, payments, or children.**

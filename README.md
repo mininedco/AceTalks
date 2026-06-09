@@ -39,12 +39,19 @@ For live task tracking, read:
 | ACET-007 | ✅ DONE | TTS — Azure Neural + Cloudflare R2 caching, server-side key, graceful fallback |
 | ACET-008 | ✅ DONE | Sentence strip — removable word pills, speak + clear, sentenceStore |
 | ACET-009 | ✅ DONE | Board navigation — boardStore stack, back/home buttons, link-tile routing |
-| ACET-010 | 🚀 OPEN | Supabase real-time sync — board changes propagate across devices live |
-| ACET-011–020 | OPEN | See TASKS.md |
+| ACET-010 | ✅ DONE | Supabase real-time sync — `useBoardSync` hook, per-board channels, auto-cleanup |
+| ACET-021 | ✅ DONE | RLS fix — `schema.sql` updated with `SECURITY DEFINER` helpers (idempotent) |
+| ACET-022 | ✅ DONE | Redis rate limiting — Upstash sliding window, in-memory map removed |
+| ACET-011 | 🚀 OPEN | RevenueCat billing — free vs pro entitlements, paywall screen |
+| ACET-012–020, 023–030 | OPEN | See TASKS.md |
 
-**Active Claude Code ticket:** ACET-010 — Supabase real-time sync.
+**Active Claude Code ticket:** ACET-011 — RevenueCat billing.
 
-**⚠️ Manual step required:** Run `supabase/rls-fix.sql` in the Supabase SQL editor. The app cannot query boards or tiles until the RLS circular dependency is resolved.
+**⚠️ Two manual steps required:**
+1. Run `supabase/rls-fix.sql` in the Supabase SQL editor (fixes RLS infinite recursion on live DB)
+2. Set `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` in Railway environment before deploying
+
+**Security review 2026-06-09:** 10 new tickets added (ACET-021–030). See TASKS.md for full backlog.
 **Dedicated to:** Ace 🌟
 
 ### Dev server

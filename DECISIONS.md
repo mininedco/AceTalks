@@ -139,6 +139,27 @@ design system consistency. Tailwind classes are familiar if design is done in we
 
 ---
 
+## ADR-011 · Data classification — vocabulary and media as PHI
+
+**Status:** settled
+**Decision:** Any user-created vocabulary (tile labels, custom phrases) and any uploaded media (symbol images, voice recordings) is classified as Protected Health Information (PHI) and must never be sent to external analytics or third-party services.
+**Why:** AAC vocabulary reveals the communicator's medical conditions, therapy goals, and communication needs. A tile labeled "pain", "seizure", or "I need help" is diagnostic in nature. Sending this to PostHog, Sentry, or any external service would constitute an unauthorized disclosure of health information. Sentry crash reports must strip breadcrumbs that include tile labels. PostHog events must never include tile text.
+**In code:** `tile_events` stores only `tile_id` (UUID) — no raw label text. TTS cache keys use SHA-256 hashes of the text — the original phrase is not stored in R2 key names. PostHog event properties must not include any `label`, `text`, or `word` fields.
+**Rejected:** Sending anonymized tile text to analytics (still linkable to health conditions via co-occurrence).
+**Rejected:** Logging tile labels in Sentry breadcrumbs (crashes could expose PHI in error reports).
+
+---
+
+## ADR-012 · Upstash Redis for persistent rate limiting
+
+**Status:** settled
+**Decision:** Use Upstash Redis (serverless, HTTP-based) for rate limiting the TTS API endpoint, replacing the in-memory Map.
+**Why:** Railway containers restart and sleep on the free tier. An in-memory rate limiter resets on every restart, allowing quota abuse by triggering restarts. Upstash Redis persists across restarts, has a free tier sufficient for MVP, and works with Hono via the `@upstash/ratelimit` SDK without a persistent TCP connection (HTTP-based, works in Edge/serverless contexts too).
+**Rejected:** Redis via Upstash TCP (requires persistent connection — more complex for Railway).
+**Rejected:** Keeping in-memory map (resets on restart — not a real rate limit).
+
+---
+
 ## How to add a new decision
 
 Copy this template and append at the bottom:

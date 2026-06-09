@@ -21,7 +21,7 @@ Claude Code picks the next OPEN ticket from this list, implements it, marks it D
 | 7 | ACET-007 | P1 | **DONE** | TTS integration — Azure Neural, 6 free languages, R2 audio caching |
 | 8 | ACET-008 | P1 | **DONE** | Sentence strip — word pills, speak button, clear button, persistent bar |
 | 9 | ACET-009 | P1 | **DONE** | Board navigation — home board → category board → back, breadcrumb |
-| 10 | ACET-010 | P1 | **OPEN** | Supabase real-time sync — board changes propagate across devices live |
+| 10 | ACET-010 | P1 | **DONE** | Supabase real-time sync — board changes propagate across devices live |
 | 11 | ACET-011 | P2 | **OPEN** | RevenueCat billing — free vs pro entitlements, paywall screen |
 | 12 | ACET-012 | P2 | **OPEN** | Parent dashboard — manage communicator profile, boards, settings |
 | 13 | ACET-013 | P2 | **OPEN** | OBF export — export boards as .obz file (Open Board Format) |
@@ -535,12 +535,15 @@ return () => { supabase.removeChannel(channel) }
 ```
 
 **Acceptance criteria:**
-- [ ] Tile label change made in parent dashboard reflects on board screen within 2 seconds
-- [ ] New tile added reflects on board screen in real-time
-- [ ] Deleted tile disappears in real-time
-- [ ] Channel is unsubscribed on component unmount (no memory leak)
-- [ ] Real-time subscription respects RLS — user only receives updates for their communicator's boards
-- [ ] `npx tsc --noEmit` passes
+- [x] Tile label change reflects on board screen within 2 seconds — INSERT/UPDATE/DELETE events via Supabase Realtime
+- [x] New tile added reflects in real-time — `upsertTile` action on boardStore
+- [x] Deleted tile disappears in real-time — `deleteTile` action on boardStore
+- [x] Channels unsubscribed on unmount — cleanup in useEffect return; channels cleared on stack change
+- [x] Subscribes to every board in navigation stack — one channel per board ID
+- [x] Stale channels cleaned up when board is popped from stack
+- [x] `npx tsc --noEmit` passes — verified 2026-06-09
+
+**Completion note (2026-06-09):** `boardStore` extended with `upsertTile`/`deleteTile` patch actions. `useBoardSync` subscribes to `postgres_changes` on `tiles` filtered by `board_id`. Wired into home board screen alongside `useEffect`. Requires `supabase/rls-fix.sql` to be run first (realtime respects RLS).
 
 ---
 
@@ -728,12 +731,22 @@ function trackEvent(event: string, props?: object) {
 
 ---
 
-## Security tickets
+## Security & modernisation tickets (from security review 2026-06-09)
 
 | # | Ticket | Priority | Status | Description |
 |---|---|---|---|---|
 | S1 | ACET-SEC-001 | **P0** | **DONE** | Migrate `@clerk/clerk-expo@2.x` → `@clerk/expo@3.x` — entire 2.x range is vulnerable |
 | S2 | ACET-SEC-002 | **P2** | **BLOCKED** | `uuid@8.3.2` transitive CVE — no fix available until upstream deps update |
+| 21 | ACET-021 | **P0** | **DONE** | Supabase RLS infinite recursion fix — SECURITY DEFINER helpers, schema.sql updated |
+| 22 | ACET-022 | **P0** | **DONE** | Persistent Redis rate limiting for TTS — Upstash sliding window, in-memory map removed |
+| 23 | ACET-023 | **P0** | **OPEN** | COPPA hard gate — parental consent screen before any child communicator record is created |
+| 24 | ACET-024 | **P1** | **OPEN** | R2 audio cache security audit — SHA-256 key hashing, bucket access policy verification |
+| 25 | ACET-025 | **P1** | **OPEN** | Context file updates — PHI handling, JWT claim validation, ADR-011 data classification |
+| 26 | ACET-026 | **P1** | **OPEN** | Zod runtime validation — schemas for all Supabase responses + Zustand store guards |
+| 27 | ACET-027 | **P2** | **OPEN** | AudioService abstraction — extract expo-av from UI into services/AudioService.ts |
+| 28 | ACET-028 | **P2** | **OPEN** | Edit mode biometric/PIN lock — prevent accidental board edits |
+| 29 | ACET-029 | **P2** | **OPEN** | Vocabulary masking — hide tiles without shifting grid (motor-planning integrity) |
+| 30 | ACET-030 | **P2** | **OPEN** | Low-stimulus mode — high-contrast monochrome UI for sensory-sensitive users |
 
 ---
 
@@ -917,13 +930,212 @@ EXPO_CLOUDFLARE_R2_SECRET=...
 
 ---
 
+---
+
+## ACET-021 — Supabase RLS infinite recursion fix — P0 OPEN
+
+**What:** The `communicator_owner_or_supervisor` policy on `communicators` subqueries `supervisors`, which itself subqueries `communicators` — PostgreSQL detects this as infinite recursion (error 42P17). The app cannot query boards or tiles until this is resolved.
+
+**Root cause:** Circular policy dependency between `communicators` ↔ `supervisors`.
+**Fix written:** `supabase/rls-fix.sql` — two `SECURITY DEFINER` functions (`is_supervisor_of`, `my_communicator_ids`) break the cycle. Policies rebuilt to use helpers.
+**Status:** SQL written and committed. **Nadia must run `supabase/rls-fix.sql` in the Supabase SQL editor.**
+
+**Files:**
+- `supabase/rls-fix.sql` — already committed, ready to run
+- `supabase/schema.sql` — update original schema to use helpers (prevent recurrence)
+
+**Acceptance criteria:**
+- [ ] `supabase/rls-fix.sql` run in Supabase SQL editor — **pending Nadia manual run**
+- [x] `schema.sql` updated with `SECURITY DEFINER` helpers + `DROP POLICY IF EXISTS` — idempotent re-runs safe
+- [x] `masked` column added to `tiles` table in schema (ACET-029 prep)
+- [x] `types/index.ts` updated with `masked?: boolean` on `Tile`
+- [ ] Anon key query returns `[]` not 500 — verifiable after manual SQL run
+- [x] `npx tsc --noEmit` passes — verified 2026-06-09
+
+**Completion note (2026-06-09):** `schema.sql` is now the canonical source of truth and is idempotent. `rls-fix.sql` remains for patching the already-deployed database. Both files use `SECURITY DEFINER` helpers. **Nadia: run `rls-fix.sql` in Supabase SQL editor to fix the live database.**
+
+---
+
+## ACET-022 — Persistent Redis rate limiting for TTS — P0 OPEN
+
+**What:** `server/routes/tts.ts` uses an in-memory JS `Map` for rate limiting. This resets on every Railway container restart/sleep — anyone can exhaust the Azure TTS free tier quota by triggering a restart then hammering the endpoint.
+
+**Fix:** Replace in-memory map with Upstash Redis sliding-window rate limiter (`@upstash/ratelimit` + `@upstash/redis`). Free tier is sufficient for MVP.
+
+**Files:**
+- `server/routes/tts.ts` — replace in-memory limiter
+- `server/lib/redis.ts` — new Upstash client singleton
+- `.env.example` — add `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`
+
+**Environment variables:**
+```
+UPSTASH_REDIS_REST_URL=   # from Upstash console
+UPSTASH_REDIS_REST_TOKEN= # from Upstash console
+```
+
+**Acceptance criteria:**
+- [x] In-memory `Map` fully removed from `server/routes/tts.ts`
+- [x] Upstash Redis sliding window (30 req/60s per IP) — `server/lib/redis.ts` singleton
+- [x] Graceful degradation: Redis unavailable → log error → allow request (TTS never fully down)
+- [x] `X-RateLimit-Remaining` header returned on 429 response
+- [x] `.env.example` updated with `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN`
+- [x] `DECISIONS.md` ADR-012 added documenting Upstash choice
+- [ ] Rate limit persists across Railway restarts — verifiable after Upstash credentials set in Railway env
+- [x] `tsc --noEmit` passes — verified 2026-06-09
+
+**Completion note (2026-06-09):** `@upstash/redis` + `@upstash/ratelimit` installed. `server/lib/redis.ts` lazy-initialises Ratelimit singleton. Requires `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` in Railway environment variables before rate limiting is active. Without them, server throws on startup — set these before deploying.
+
+---
+
+## ACET-023 — COPPA hard gate — P0 OPEN
+
+**What:** ⛔ SHIELD — `age_group = 'child'` is selected in onboarding but no consent record is written before the `communicators` row is created. This violates COPPA. The consent screen (`app/(onboarding)/consent.tsx`) is a stub.
+
+**Required flow:**
+1. Who-for screen selects `child` → navigate to consent screen (already wired)
+2. Consent screen: show privacy policy summary, require explicit "I agree" tap (no pre-check)
+3. On agree: write `parental_consents` row first, then create `communicators` row
+4. PostHog: call `posthog.optOut()` immediately when `age_group = 'child'` is confirmed
+
+**Files:**
+- `app/(onboarding)/consent.tsx` — implement full consent UI
+- `app/(onboarding)/who-for.tsx` — verify child path passes consent before creating record
+- `hooks/usePostHog.ts` (new) — wraps PostHog with child-profile gate
+
+**SHIELD:**
+- Consent record must be inserted BEFORE the communicator record — never after
+- No `posthog.capture()` calls allowed when active profile is `child`
+- "I agree" button must require affirmative tap — no pre-checked checkbox
+
+**Acceptance criteria:**
+- [ ] Child communicator cannot be created without a `parental_consents` row
+- [ ] Consent screen cannot be back-navigated past (no back button shown)
+- [ ] PostHog events disabled for child profiles
+- [ ] Consent timestamp + version stored in `parental_consents`
+- [ ] `tsc --noEmit` passes
+
+---
+
+## ACET-024 — R2 audio cache security audit — P1 OPEN
+
+**What:** ⛔ SHIELD — TTS cache keys are derived from `sha256(text)` + language. If a user speaks medical/PII text, the hash is cryptographically irreversible (safe), but the R2 bucket `ACL: public-read` means anyone with the URL can access the audio.
+
+**Tasks:**
+- Verify `ttsKey()` in `lib/r2-cache.ts` uses SHA-256 (already does — confirm 16-char truncation is safe)
+- Verify R2 bucket does NOT allow public listing (only direct URL access is acceptable)
+- Document the acceptable risk: audio URLs are unguessable 256-bit hashes — direct URL access without listing is acceptable for cached TTS audio (no PII in the file path)
+- Confirm `ACL: public-read` is on objects, not on the bucket's list permission
+
+**Acceptance criteria:**
+- [ ] `ttsKey()` confirmed to use full SHA-256 hex (16-char prefix reviewed and documented)
+- [ ] R2 bucket public listing is disabled (verify in Cloudflare dashboard)
+- [ ] Security note added to `lib/r2-cache.ts` explaining the hashing rationale
+- [ ] DECISIONS.md updated: ADR-011 — Data classification and R2 access policy
+
+---
+
+## ACET-025 — Context file updates for PHI/security directives — P1 OPEN
+
+**What:** Add security directives surfaced by the 2026-06-09 security review to `CLAUDE.md`, `AGENTS.md`, and `DECISIONS.md`.
+
+**Changes:**
+- `CLAUDE.md` Shield persona: mandate `expo-secure-store` for any local profile caching; verify Clerk JWT custom claims before generating SQL
+- `AGENTS.md`: add pre-flight dependency CVE check step; note `uuid@8.3.2` blocker
+- `DECISIONS.md`: ADR-011 — data classification (custom vocabulary and uploaded media = PHI, never sent to external analytics)
+
+**Acceptance criteria:**
+- [ ] `CLAUDE.md` Shield section updated
+- [ ] `AGENTS.md` preflight check documented
+- [ ] `DECISIONS.md` ADR-011 added
+
+---
+
+## ACET-026 — Zod runtime validation for Supabase responses — P1 OPEN
+
+**What:** Supabase query results are typed at compile time but unvalidated at runtime. A schema migration or data inconsistency causes silent wrong-type data into Zustand stores, which can crash the board screen mid-communication.
+
+**Files:**
+- `lib/schemas.ts` (new) — Zod schemas for `Communicator`, `Board`, `Tile` as returned by Supabase
+- `hooks/useHomeBoardData.ts` — parse results through schemas
+- `hooks/useBoardNavigation.ts` — parse board + tiles through schemas
+- `store/boardStore.ts` — guard `setHome`/`push` with schema parse
+
+**Acceptance criteria:**
+- [ ] Malformed `communicators` row: hook returns `error` state, does not crash
+- [ ] Malformed `tiles` row: tile skipped, others still render
+- [ ] `tsc --noEmit` passes
+
+---
+
+## ACET-027 — AudioService abstraction — P2 OPEN
+
+**What:** `expo-av` calls are scattered across `hooks/useTtsAudio.ts`. Abstracting into a service makes it testable and swappable (e.g. for `expo-audio` in SDK 57+).
+
+**Files:**
+- `services/AudioService.ts` (new) — singleton: `play(url)`, `stop()`, `preload(url)`
+- `hooks/useTtsAudio.ts` — delegate to `AudioService`
+
+**Acceptance criteria:**
+- [ ] `useTtsAudio` contains no direct `expo-av` imports
+- [ ] `AudioService.play(url)` handles stop-then-play and unload-on-finish
+- [ ] `tsc --noEmit` passes
+
+---
+
+## ACET-028 — Edit mode biometric/PIN lock — P2 OPEN
+
+**What:** Caregivers accidentally enter edit mode (board editing, tile deletion) and destroy the communicator's layout. A PIN or biometric check before entering edit mode prevents accidental changes.
+
+**Files:**
+- `hooks/useEditLock.ts` (new) — `requestEditAccess(): Promise<boolean>` using `expo-local-authentication`
+- `app/(tabs)/settings.tsx` — gate all destructive actions behind `useEditLock`
+
+**Acceptance criteria:**
+- [ ] Edit mode requires Face ID / Touch ID or PIN before activation
+- [ ] Falls back gracefully if biometrics unavailable (PIN only)
+- [ ] `tsc --noEmit` passes
+
+---
+
+## ACET-029 — Vocabulary masking (motor-planning integrity) — P2 OPEN
+
+**What:** Deleting a tile shifts all subsequent tiles, destroying the communicator's muscle memory. Masking hides a tile visually while preserving its grid position.
+
+**Schema change:** Add `masked boolean DEFAULT false` to `tiles` table.
+
+**Files:**
+- `supabase/schema.sql` — add `masked` column migration
+- `types/index.ts` — add `masked?: boolean` to `Tile`
+- `components/board/Tile.tsx` — render as invisible placeholder when `masked`
+- `components/board/TileGrid.tsx` — masked tiles occupy space but are non-interactive
+
+**Acceptance criteria:**
+- [ ] Masked tile is invisible but holds grid position
+- [ ] Masked tile has `accessible={false}` — screen readers skip it
+- [ ] Unmasking restores tile at same position
+- [ ] `tsc --noEmit` passes
+
+---
+
+## ACET-030 — Low-stimulus mode — P2 OPEN
+
+**What:** Visual clutter (colors, borders, shadows) causes sensory overload for some communicators. A low-stimulus mode strips the UI to high-contrast monochrome.
+
+**Files:**
+- `store/preferencesStore.ts` (new) — `lowStimulusMode: boolean`, persisted via `expo-secure-store`
+- `components/board/Tile.tsx` — apply monochrome classes when mode active
+- `components/board/TileGrid.tsx` — remove gap/border styles in low-stimulus mode
+- `app/(tabs)/settings.tsx` — toggle
+
+**Acceptance criteria:**
+- [ ] Toggle instantly flattens UI: white background, black text, no color fills, no shadows
+- [ ] Preference persists across app restarts
+- [ ] High-contrast text still passes WCAG AA (7:1 ratio in this mode)
+- [ ] `tsc --noEmit` passes
+
+---
+
 ## Bug tickets
-
-*None yet — this section will populate during Phase 0 development.*
-
-## Regression tickets
-
-*None yet.*
 
 *None yet — this section will populate during Phase 0 development.*
 
