@@ -41,6 +41,7 @@ export interface Tile {
   colIndex: number
   linkBoardId?: string      // opens a sub-board when tapped
   bgColor?: string
+  masked?: boolean          // ACET-029: hide without shifting grid position
 }
 
 // Open Board Format (OBF) — minimal type for compatibility

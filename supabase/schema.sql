@@ -1,6 +1,39 @@
 -- AceTalks — full schema with RLS
 -- Run this in the Supabase SQL editor BEFORE any app data operations.
 -- Tables must be created in order (foreign key dependencies).
+-- If re-running: all CREATE TABLE statements use IF NOT EXISTS; policies use
+-- DROP POLICY IF EXISTS before re-creating so this file is idempotent.
+
+-- ─── RLS helper functions (SECURITY DEFINER) ─────────────────────────────────
+-- WHY: communicators ↔ supervisors policies have a circular subquery dependency.
+-- PostgreSQL detects this as infinite recursion (error 42P17).
+-- SECURITY DEFINER functions run as the function owner (postgres), bypassing RLS
+-- for the internal lookup only — breaking the cycle. This is the standard
+-- Supabase pattern for cross-table RLS without recursion.
+
+CREATE OR REPLACE FUNCTION is_supervisor_of(p_communicator_id uuid, p_user_id text)
+RETURNS boolean
+LANGUAGE sql
+SECURITY DEFINER
+STABLE
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM supervisors
+    WHERE communicator_id = p_communicator_id
+      AND user_id = p_user_id
+  );
+$$;
+
+CREATE OR REPLACE FUNCTION my_communicator_ids(p_user_id text)
+RETURNS SETOF uuid
+LANGUAGE sql
+SECURITY DEFINER
+STABLE
+AS $$
+  SELECT id FROM communicators WHERE owner_id = p_user_id
+  UNION
+  SELECT communicator_id FROM supervisors WHERE user_id = p_user_id;
+$$;
 
 -- ─── communicators ────────────────────────────────────────────────────────────
 -- The person using the AAC device. Owned by a parent/caregiver Clerk account.
@@ -17,12 +50,11 @@ CREATE TABLE IF NOT EXISTS communicators (
 
 ALTER TABLE communicators ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "communicator_owner_or_supervisor" ON communicators;
 CREATE POLICY "communicator_owner_or_supervisor" ON communicators
   USING (
-    owner_id = auth.jwt()->>'sub'
-    OR id IN (
-      SELECT communicator_id FROM supervisors WHERE user_id = auth.jwt()->>'sub'
-    )
+    owner_id = (auth.jwt()->>'sub')
+    OR is_supervisor_of(id, (auth.jwt()->>'sub'))
   );
 
 -- ─── supervisors ──────────────────────────────────────────────────────────────
@@ -38,11 +70,12 @@ CREATE TABLE IF NOT EXISTS supervisors (
 
 ALTER TABLE supervisors ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "supervisor_self_or_owner" ON supervisors;
 CREATE POLICY "supervisor_self_or_owner" ON supervisors
   USING (
-    user_id = auth.jwt()->>'sub'
+    user_id = (auth.jwt()->>'sub')
     OR communicator_id IN (
-      SELECT id FROM communicators WHERE owner_id = auth.jwt()->>'sub'
+      SELECT id FROM communicators WHERE owner_id = (auth.jwt()->>'sub')
     )
   );
 
@@ -60,13 +93,10 @@ CREATE TABLE IF NOT EXISTS boards (
 
 ALTER TABLE boards ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "board_owner_or_supervisor" ON boards;
 CREATE POLICY "board_owner_or_supervisor" ON boards
   USING (
-    communicator_id IN (
-      SELECT id FROM communicators WHERE owner_id = auth.jwt()->>'sub'
-      UNION
-      SELECT communicator_id FROM supervisors WHERE user_id = auth.jwt()->>'sub'
-    )
+    communicator_id IN (SELECT my_communicator_ids((auth.jwt()->>'sub')))
   );
 
 -- Auto-update updated_at on board changes
@@ -75,6 +105,7 @@ RETURNS TRIGGER AS $$
 BEGIN NEW.updated_at = now(); RETURN NEW; END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS boards_updated_at ON boards;
 CREATE TRIGGER boards_updated_at
   BEFORE UPDATE ON boards
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
@@ -90,19 +121,18 @@ CREATE TABLE IF NOT EXISTS tiles (
   row_index           int     NOT NULL,
   col_index           int     NOT NULL,
   link_board_id       uuid    REFERENCES boards(id),  -- opens a sub-board when tapped
-  bg_color            text
+  bg_color            text,
+  masked              boolean DEFAULT false           -- ACET-029: hide without shifting grid
 );
 
 ALTER TABLE tiles ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "tile_via_board" ON tiles;
 CREATE POLICY "tile_via_board" ON tiles
   USING (
     board_id IN (
-      SELECT id FROM boards WHERE communicator_id IN (
-        SELECT id FROM communicators WHERE owner_id = auth.jwt()->>'sub'
-        UNION
-        SELECT communicator_id FROM supervisors WHERE user_id = auth.jwt()->>'sub'
-      )
+      SELECT id FROM boards
+      WHERE communicator_id IN (SELECT my_communicator_ids((auth.jwt()->>'sub')))
     )
   );
 
@@ -119,11 +149,13 @@ CREATE TABLE IF NOT EXISTS parental_consents (
 
 ALTER TABLE parental_consents ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "consent_owner_only" ON parental_consents;
 CREATE POLICY "consent_owner_only" ON parental_consents
-  USING (owner_id = auth.jwt()->>'sub');
+  USING (owner_id = (auth.jwt()->>'sub'));
 
 -- ─── tile_events ──────────────────────────────────────────────────────────────
 -- Anonymized usage logs. Tile ID only — no raw text. COPPA-safe.
+-- ADR-011: label text must never be stored here.
 CREATE TABLE IF NOT EXISTS tile_events (
   id               uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
   communicator_id  uuid        REFERENCES communicators(id) ON DELETE CASCADE,
@@ -134,13 +166,10 @@ CREATE TABLE IF NOT EXISTS tile_events (
 
 ALTER TABLE tile_events ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "event_supervisor_access" ON tile_events;
 CREATE POLICY "event_supervisor_access" ON tile_events
   USING (
-    communicator_id IN (
-      SELECT id FROM communicators WHERE owner_id = auth.jwt()->>'sub'
-      UNION
-      SELECT communicator_id FROM supervisors WHERE user_id = auth.jwt()->>'sub'
-    )
+    communicator_id IN (SELECT my_communicator_ids((auth.jwt()->>'sub')))
   );
 
 -- ─── subscriptions ────────────────────────────────────────────────────────────
@@ -156,8 +185,12 @@ CREATE TABLE IF NOT EXISTS subscriptions (
 
 ALTER TABLE subscriptions ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "subscription_owner_only" ON subscriptions;
 CREATE POLICY "subscription_owner_only" ON subscriptions
-  USING (owner_id = auth.jwt()->>'sub');
+  USING (owner_id = (auth.jwt()->>'sub'));
 
--- Verification: run this after applying schema to confirm all tables have RLS.
+-- ─── Verification ─────────────────────────────────────────────────────────────
+-- Run after applying to confirm all tables have RLS enabled:
 -- SELECT tablename, rowsecurity FROM pg_tables WHERE schemaname = 'public';
+-- Test anon access returns [] not 500:
+-- (Run via REST with anon key — communicators should return empty array, not error)
