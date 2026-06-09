@@ -8,6 +8,7 @@ import { useOnboardingStore } from '../../store/onboardingStore'
 import { useSentenceStore } from '../../store/sentenceStore'
 import { useBoardStore } from '../../store/boardStore'
 import { useBoardNavigation } from '../../hooks/useBoardNavigation'
+import { useBoardSync } from '../../hooks/useBoardSync'
 import { useTtsAudio } from '../../hooks/useTtsAudio'
 import TileGrid from '../../components/board/TileGrid'
 import SentenceStrip from '../../components/board/SentenceStrip'
@@ -49,6 +50,9 @@ export default function HomeBoardScreen() {
   const boardStack = useBoardStore((s) => s.stack)
   const setHome = useBoardStore((s) => s.setHome)
   const { navigateTo, goBack, goHome, canGoBack, isNavigating } = useBoardNavigation()
+
+  // Real-time sync — subscribes to tiles for every board in the navigation stack
+  useBoardSync()
 
   // Seed the board store once the home board loads
   useEffect(() => {

@@ -16,6 +16,9 @@ interface BoardState {
   pop: () => void
   popToHome: () => void
   setNavigating: (v: boolean) => void
+  // Real-time patch operations (ACET-010)
+  upsertTile: (boardId: string, tile: Tile) => void
+  deleteTile: (boardId: string, tileId: string) => void
 }
 
 export const useBoardStore = create<BoardState>((set) => ({
@@ -27,4 +30,27 @@ export const useBoardStore = create<BoardState>((set) => ({
   pop: () => set((s) => ({ stack: s.stack.length > 1 ? s.stack.slice(0, -1) : s.stack })),
   popToHome: () => set((s) => ({ stack: s.stack.length > 0 ? [s.stack[0]] : s.stack })),
   setNavigating: (v) => set({ isNavigating: v }),
+
+  upsertTile: (boardId, tile) =>
+    set((s) => ({
+      stack: s.stack.map((entry) => {
+        if (entry.board.id !== boardId) return entry
+        const exists = entry.tiles.some((t) => t.id === tile.id)
+        const tiles = exists
+          ? entry.tiles.map((t) => (t.id === tile.id ? tile : t))
+          : [...entry.tiles, tile].sort(
+              (a, b) => a.rowIndex - b.rowIndex || a.colIndex - b.colIndex
+            )
+        return { ...entry, tiles }
+      }),
+    })),
+
+  deleteTile: (boardId, tileId) =>
+    set((s) => ({
+      stack: s.stack.map((entry) =>
+        entry.board.id !== boardId
+          ? entry
+          : { ...entry, tiles: entry.tiles.filter((t) => t.id !== tileId) }
+      ),
+    })),
 }))
