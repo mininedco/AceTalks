@@ -11,29 +11,35 @@
 -- for the internal lookup only — breaking the cycle. This is the standard
 -- Supabase pattern for cross-table RLS without recursion.
 
-CREATE OR REPLACE FUNCTION is_supervisor_of(p_communicator_id uuid, p_user_id text)
+CREATE OR REPLACE FUNCTION public.is_supervisor_of(p_communicator_id uuid, p_user_id text)
 RETURNS boolean
 LANGUAGE sql
 SECURITY DEFINER
 STABLE
+SET search_path = ''
 AS $$
   SELECT EXISTS (
-    SELECT 1 FROM supervisors
+    SELECT 1 FROM public.supervisors
     WHERE communicator_id = p_communicator_id
       AND user_id = p_user_id
   );
 $$;
+-- WHY: REVOKE prevents anon/authenticated from calling this via /rpc/ — it is an
+-- internal policy helper only. EXECUTE is still granted to postgres (function owner).
+REVOKE EXECUTE ON FUNCTION public.is_supervisor_of(uuid, text) FROM anon, authenticated;
 
-CREATE OR REPLACE FUNCTION my_communicator_ids(p_user_id text)
+CREATE OR REPLACE FUNCTION public.my_communicator_ids(p_user_id text)
 RETURNS SETOF uuid
 LANGUAGE sql
 SECURITY DEFINER
 STABLE
+SET search_path = ''
 AS $$
-  SELECT id FROM communicators WHERE owner_id = p_user_id
+  SELECT id FROM public.communicators WHERE owner_id = p_user_id
   UNION
-  SELECT communicator_id FROM supervisors WHERE user_id = p_user_id;
+  SELECT communicator_id FROM public.supervisors WHERE user_id = p_user_id;
 $$;
+REVOKE EXECUTE ON FUNCTION public.my_communicator_ids(text) FROM anon, authenticated;
 
 -- ─── communicators ────────────────────────────────────────────────────────────
 -- The person using the AAC device. Owned by a parent/caregiver Clerk account.
@@ -100,10 +106,17 @@ CREATE POLICY "board_owner_or_supervisor" ON boards
   );
 
 -- Auto-update updated_at on board changes
-CREATE OR REPLACE FUNCTION update_updated_at()
-RETURNS TRIGGER AS $$
-BEGIN NEW.updated_at = now(); RETURN NEW; END;
-$$ LANGUAGE plpgsql;
+CREATE OR REPLACE FUNCTION public.update_updated_at()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = ''
+AS $$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$$;
 
 DROP TRIGGER IF EXISTS boards_updated_at ON boards;
 CREATE TRIGGER boards_updated_at
