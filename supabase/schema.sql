@@ -26,7 +26,8 @@ AS $$
 $$;
 -- WHY: REVOKE prevents anon/authenticated from calling this via /rpc/ — it is an
 -- internal policy helper only. EXECUTE is still granted to postgres (function owner).
-REVOKE EXECUTE ON FUNCTION public.is_supervisor_of(uuid, text) FROM anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.is_supervisor_of(uuid, text) FROM PUBLIC;
+GRANT  EXECUTE ON FUNCTION public.is_supervisor_of(uuid, text) TO postgres;
 
 CREATE OR REPLACE FUNCTION public.my_communicator_ids(p_user_id text)
 RETURNS SETOF uuid
@@ -39,7 +40,8 @@ AS $$
   UNION
   SELECT communicator_id FROM public.supervisors WHERE user_id = p_user_id;
 $$;
-REVOKE EXECUTE ON FUNCTION public.my_communicator_ids(text) FROM anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.my_communicator_ids(text) FROM PUBLIC;
+GRANT  EXECUTE ON FUNCTION public.my_communicator_ids(text) TO postgres;
 
 -- ─── communicators ────────────────────────────────────────────────────────────
 -- The person using the AAC device. Owned by a parent/caregiver Clerk account.

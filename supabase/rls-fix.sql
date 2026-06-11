@@ -25,7 +25,8 @@ AS $$
       AND user_id = p_user_id
   );
 $$;
-REVOKE EXECUTE ON FUNCTION public.is_supervisor_of(uuid, text) FROM anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.is_supervisor_of(uuid, text) FROM PUBLIC;
+GRANT  EXECUTE ON FUNCTION public.is_supervisor_of(uuid, text) TO postgres;
 
 -- ── Helper: all communicator IDs owned or supervised by a user ───────────────
 CREATE OR REPLACE FUNCTION public.my_communicator_ids(p_user_id text)
@@ -39,7 +40,8 @@ AS $$
   UNION
   SELECT communicator_id FROM public.supervisors WHERE user_id = p_user_id;
 $$;
-REVOKE EXECUTE ON FUNCTION public.my_communicator_ids(text) FROM anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.my_communicator_ids(text) FROM PUBLIC;
+GRANT  EXECUTE ON FUNCTION public.my_communicator_ids(text) TO postgres;
 
 -- ── Trigger function: pin search_path ────────────────────────────────────────
 CREATE OR REPLACE FUNCTION public.update_updated_at()

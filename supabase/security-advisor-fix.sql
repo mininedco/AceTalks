@@ -1,15 +1,16 @@
--- AceTalks — Supabase Security Advisor fixes (2026-06-09)
+-- AceTalks — Security Advisor fix v2 (2026-06-10)
 -- Run this in the Supabase SQL editor.
--- Addresses all WARN-level findings from the security linter.
 --
--- Fixes applied:
--- 1. REVOKE EXECUTE on helper functions from anon + authenticated roles
---    (they are internal policy helpers, not public RPC endpoints)
--- 2. SET search_path = '' on all three public functions
---    (prevents search_path injection attacks on SECURITY DEFINER functions)
--- Note: rls_auto_enable is a Supabase-managed internal function — do not touch it.
+-- Problem: CREATE OR REPLACE FUNCTION implicitly re-grants EXECUTE TO PUBLIC
+-- on every run, so a REVOKE that follows it in the same script is overridden
+-- by PostgreSQL's default grant. The fix is to REVOKE FROM PUBLIC (not just
+-- from named roles) so the implicit grant is fully removed, then re-grant
+-- only to postgres (the role the RLS policy engine runs as).
+--
+-- This script is idempotent — safe to run multiple times.
 
--- ── 1. Harden is_supervisor_of ────────────────────────────────────────────────
+-- ── Recreate with hardened search_path ───────────────────────────────────────
+
 CREATE OR REPLACE FUNCTION public.is_supervisor_of(p_communicator_id uuid, p_user_id text)
 RETURNS boolean
 LANGUAGE sql
@@ -24,11 +25,6 @@ AS $$
   );
 $$;
 
--- Revoke public execute — this function must only be called by the policy engine,
--- never directly via the REST API (/rest/v1/rpc/is_supervisor_of).
-REVOKE EXECUTE ON FUNCTION public.is_supervisor_of(uuid, text) FROM anon, authenticated;
-
--- ── 2. Harden my_communicator_ids ────────────────────────────────────────────
 CREATE OR REPLACE FUNCTION public.my_communicator_ids(p_user_id text)
 RETURNS SETOF uuid
 LANGUAGE sql
@@ -41,25 +37,28 @@ AS $$
   SELECT communicator_id FROM public.supervisors WHERE user_id = p_user_id;
 $$;
 
-REVOKE EXECUTE ON FUNCTION public.my_communicator_ids(text) FROM anon, authenticated;
+-- ── Strip the implicit PUBLIC grant, then re-grant to postgres only ──────────
+-- WHY: CREATE OR REPLACE always grants EXECUTE TO PUBLIC implicitly.
+-- REVOKE FROM anon, authenticated alone is not enough — PUBLIC must be revoked
+-- first, then only the roles that legitimately need EXECUTE get it back.
+-- The policy engine runs as the postgres role, so that's the only grantee needed.
 
--- ── 3. Harden update_updated_at (trigger function) ───────────────────────────
--- This is a SECURITY INVOKER trigger — no REVOKE needed, but search_path must
--- be pinned to prevent schema injection if the search_path is ever altered.
-CREATE OR REPLACE FUNCTION public.update_updated_at()
-RETURNS TRIGGER
-LANGUAGE plpgsql
-SECURITY INVOKER
-SET search_path = ''
-AS $$
-BEGIN
-  NEW.updated_at = now();
-  RETURN NEW;
-END;
-$$;
--- Trigger function — no REVOKE needed (triggers are not callable via REST API).
+REVOKE EXECUTE ON FUNCTION public.is_supervisor_of(uuid, text) FROM PUBLIC;
+GRANT  EXECUTE ON FUNCTION public.is_supervisor_of(uuid, text) TO postgres;
+
+REVOKE EXECUTE ON FUNCTION public.my_communicator_ids(text) FROM PUBLIC;
+GRANT  EXECUTE ON FUNCTION public.my_communicator_ids(text) TO postgres;
 
 -- ── Verification ─────────────────────────────────────────────────────────────
--- After running, the Security Advisor should show 0 warnings for these functions.
--- Confirm RLS still works by querying /rest/v1/communicators with a valid Clerk JWT
--- — should return your rows. Anon query should return [].
+-- After running, check privileges with:
+-- SELECT grantee, privilege_type
+-- FROM information_schema.routine_privileges
+-- WHERE routine_name IN ('is_supervisor_of', 'my_communicator_ids')
+-- ORDER BY routine_name, grantee;
+--
+-- Expected result: only 'postgres' (or your project's owner role) listed.
+-- anon and authenticated must NOT appear.
+--
+-- Then re-run the Security Advisor — the two anon/authenticated warnings
+-- should be gone. The rls_auto_enable warning is Supabase-internal and
+-- cannot be fixed by us.
