@@ -63,6 +63,28 @@ Document the blocker here and stop — do not work around it or guess.
 
 ---
 
+## Git Branching Rule — Non-Negotiable
+
+**Never push directly to `main`.** Branch protection requires a PR and a passing CodeRabbit review. Direct pushes bypass these checks and are not allowed.
+
+**Required workflow for every ticket:**
+
+1. Before writing any code, create a branch:
+   ```bash
+   git checkout -b acet-XXX-short-description
+   ```
+2. Commit all work to that branch.
+3. Push and open a PR:
+   ```bash
+   gh pr create --title "ACET-XXX: short description" --body "..."
+   ```
+4. Stop. Do not merge. Nadia reviews after CodeRabbit passes, then merges via GitHub UI.
+
+**Branch naming:** `acet-XXX-kebab-description` (e.g. `acet-023-coppa-hard-gate`)
+**One branch per ticket. Never push to `main` directly.**
+
+---
+
 ## Ticket Scope Rules
 
 **These rules exist to conserve tokens and prevent unintended changes outside ticket scope.**
@@ -77,7 +99,7 @@ Document the blocker here and stop — do not work around it or guess.
 
 3. **Proof of work = file path + line number + content snippet.** When marking
    a ticket complete, cite evidence in this exact format:
-   ```
+   ```text
    ✅ VERIFIED: components/board/Tile.tsx:42 — `export function Tile(`
    ✅ VERIFIED: lib/supabase.ts:8 — `export const supabase = createClient(`
    ```
@@ -268,7 +290,7 @@ Do not suggest replacing any of these without a new entry in `DECISIONS.md` firs
 
 ## File Structure
 
-```
+```text
 acetalks/
 ├── AGENTS.md
 ├── CLAUDE.md
@@ -381,7 +403,7 @@ Documented in Blockers. Do not present as solved.
 
 **Never assume a field exists. Always verify against `supabase/schema.sql`.**
 
-```
+```text
 communicators     — the person using the AAC device
 boards            — OBF-compatible communication boards (obf_json: jsonb)
 tiles             — individual buttons (label_translations: jsonb, tts_cache_keys: jsonb)
