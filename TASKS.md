@@ -1,6 +1,6 @@
 # AceTalks — Implementation Tickets
 
-Generated: 2026-06-03. Phase 0 MVP queue.
+Generated: 2026-06-03. Phase 0 MVP queue. Last template pass: 2026-06-12.
 
 Scope: Phase 0 mobile-first (iOS + Android + Web via Expo). Each ticket should be 30–60 minutes or less. Do not add dependencies unless the ticket explicitly requires it.
 
@@ -424,7 +424,7 @@ interface TileProps {
 
 ---
 
-## ACET-008 — Sentence strip — P1 OPEN
+## ACET-008 — Sentence strip — P1 DONE ✓
 
 **What:** The persistent bar above the tile grid where tapped words accumulate as pills. Includes speak button and clear button.
 
@@ -470,7 +470,7 @@ await playTTS(sentence, currentLanguage)
 
 ---
 
-## ACET-009 — Board navigation — P1 OPEN
+## ACET-009 — Board navigation — P1 DONE ✓
 
 **What:** Tapping a tile that has `link_board_id` set navigates to that sub-board. Back button or home tile returns to home board. Breadcrumb shows current path.
 
@@ -507,7 +507,7 @@ if (tile.linkBoardId) {
 
 ---
 
-## ACET-010 — Supabase real-time sync — P1 OPEN
+## ACET-010 — Supabase real-time sync — P1 DONE ✓
 
 **What:** When a parent or therapist edits a board, the change propagates instantly to the child's device without a reload.
 
@@ -549,185 +549,400 @@ return () => { supabase.removeChannel(channel) }
 
 ## ACET-011 — RevenueCat billing — P2 OPEN
 
-**What:** Set up RevenueCat to manage free vs pro entitlements. Paywall screen shown when a pro feature is accessed by a free user.
+**Persona:** Stack (Shield reviews payment flow after)
+**Phase:** 0
 
-**Files:** `lib/revenuecat.ts`, `components/ui/Paywall.tsx`, `hooks/useEntitlement.ts`
+**What:** Wire up RevenueCat for free vs pro entitlement checks, add a paywall screen shown when a pro feature is tapped.
 
-**Entitlements:**
-- `free` — unlimited boards (3 free languages, basic TTS, single device)
-- `pro` — all languages, natural voice, cloud sync, collaboration, custom voice recording
-- `org` — pro + SLP reporting, HIPAA BAA option, multi-user
+**Why:** AceTalks needs sustainable revenue to keep free-tier languages free forever.
 
-**Pricing constants:**
-- Monthly: $4.99
-- Annual: $49/yr
-- Lifetime: $149 one-time
+## Files
+- app/(tabs)/settings.tsx           ← edit (add upgrade CTA)
+- components/ui/PaywallModal.tsx    ← create
+- hooks/useEntitlement.ts           ← create
+- lib/revenuecat.ts                 ← create
+- types/index.ts                    ← read only (Entitlement type)
+- constants/languages.ts            ← read only (pro language list)
 
-**Acceptance criteria:**
-- [ ] `useEntitlement('pro')` returns correct boolean from RevenueCat
-- [ ] Pro feature access by free user shows `<Paywall />` component
-- [ ] Paywall shows monthly/annual/lifetime options with correct prices
-- [ ] Successful purchase updates entitlement in real-time
-- [ ] RevenueCat webhook updates Supabase `subscriptions` table via server route
-- [ ] `REVENUECAT_WEBHOOK_SECRET` is server-side only
+## Acceptance criteria
+- [ ] `useEntitlement()` hook returns `'free' | 'pro' | 'org'` from RevenueCat
+- [ ] Pro languages are locked behind entitlement check — free tier always accessible
+- [ ] Paywall modal appears when a locked feature is tapped
+- [ ] RevenueCat `REVENUE_CAT_API_KEY` is in `.env`, never hardcoded
+- [ ] `npx tsc --noEmit` passes with zero errors
+- [ ] ACCESS: paywall modal meets 44pt touch targets, has accessibilityLabel on all buttons
+- [ ] SHIELD: no payment data stored locally; RevenueCat is source of truth
+
+## Proof of completion
+<!-- Populated by agent when marking DONE. File + line number + snippet required. -->
+- [ ] hooks/useEntitlement.ts:1 — `export function useEntitlement(`
+- [ ] components/ui/PaywallModal.tsx:1 — `export function PaywallModal(`
+- [ ] lib/revenuecat.ts:1 — `import Purchases from`
+- [ ] npx tsc --noEmit — 0 errors
+
+## Constraints
+- Do not touch `supabase/schema.sql` — subscriptions table already exists
+- Do not implement server-side subscription logic in this ticket — that's ACET-012
+- RevenueCat is the billing source of truth — do not duplicate subscription state in Supabase
+
+## Notes
+- RevenueCat SDK: `react-native-purchases` — check CVEs before installing
+- Entitlement IDs in RevenueCat dashboard must match what `useEntitlement` checks
+- ⛔ SHIELD: after Stack finishes, Shield reviews the payment flow before DONE is marked
 
 ---
 
 ## ACET-012 — Parent dashboard — P2 OPEN
 
+**Persona:** Stack
+**Phase:** 0
+
 **What:** A settings-like screen for the parent/caregiver to manage the communicator profile, boards, and supervisors.
 
-**Sections:** Profile settings (name, language, grid size) · Board management (create, rename, delete boards) · Supervisors (invite therapist/teacher by email) · Danger zone (delete communicator data)
+**Why:** Parents need a way to customize their child's board, invite therapists, and manage the profile without touching the communication screen.
 
-**Acceptance criteria:**
-- [ ] Profile edits save to Supabase and reflect immediately on board screen
+## Files
+- app/(tabs)/settings.tsx           ← edit (add dashboard sections)
+- components/ui/ProfileEditor.tsx   ← create
+- components/ui/BoardManager.tsx    ← create
+- components/ui/SupervisorList.tsx  ← create
+- hooks/useParentDashboard.ts       ← create
+- types/index.ts                    ← read only
+
+## Acceptance criteria
+- [ ] Profile edits (name, language, grid size) save to Supabase and reflect immediately on board screen
 - [ ] Board create/rename/delete works
 - [ ] Supervisor invite sends email via Clerk
 - [ ] Delete communicator data: requires typed confirmation, removes all rows with CASCADE
 - [ ] All forms have accessible labels and error states
 - [ ] `npx tsc --noEmit` passes
 
+## Proof of completion
+- [ ] components/ui/ProfileEditor.tsx:1 — `export function ProfileEditor(`
+- [ ] components/ui/BoardManager.tsx:1 — `export function BoardManager(`
+- [ ] hooks/useParentDashboard.ts:1 — `export function useParentDashboard(`
+- [ ] npx tsc --noEmit — 0 errors
+
+## Constraints
+- Do not touch `supabase/schema.sql` — schema is already final for Phase 0
+- Do not implement SLP reporting — that is Phase 1 (ACET-103)
+- Do not add new Supabase tables without a SHIELD review
+
+## Notes
+- Supervisor invite uses Clerk's `invitations` API — verify it exists in `@clerk/expo@3.x` before building
+- Danger zone (delete all data) must require the user to type "DELETE" before allowing — no undo
+
 ---
 
 ## ACET-013 — OBF export — P2 OPEN
 
+**Persona:** Stack
+**Phase:** 0
+
 **What:** Export a board as an `.obz` file (zipped OBF) that can be imported into any other AAC app.
 
-**File:** `lib/obf.ts` — `exportBoardToOBZ(board: Board): Promise<Blob>`
+**Why:** Users should never feel locked in — their child's vocabulary belongs to them, not AceTalks.
 
-**OBF format reference:** openboardformat.org/docs
+## Files
+- lib/obf.ts                        ← edit (implement exportBoardToOBZ)
+- app/(tabs)/settings.tsx           ← edit (add export button to board list)
+- types/index.ts                    ← read only
 
-**Acceptance criteria:**
+## Acceptance criteria
 - [ ] Exported `.obz` can be imported into Cboard or CoughDrop without errors
 - [ ] All tile labels (in the communicator's primary language) are present
 - [ ] Linked sub-boards are included in the `.obz` zip
 - [ ] Export button accessible from parent dashboard board list
+- [ ] `npx tsc --noEmit` passes
+
+## Proof of completion
+- [ ] lib/obf.ts:LINE — `export async function exportBoardToOBZ(`
+- [ ] npx tsc --noEmit — 0 errors
+
+## Constraints
+- Do not implement OBF import in this ticket — that is ACET-014
+- Do not add new npm packages without a CVE check — prefer native `expo-file-system` + `expo-sharing`
+
+## Notes
+- OBF format reference: openboardformat.org/docs
+- The `.obz` is a zip containing `manifest.json` + one `.obf` per board
+- Use `expo-file-system` to write the zip and `expo-sharing` to share — no extra zip library needed if possible
 
 ---
 
 ## ACET-014 — OBF import — P2 OPEN
 
+**Persona:** Stack
+**Phase:** 0
+
 **What:** Import a `.obz` file from another AAC app. Parses the OBF JSON, creates boards and tiles in Supabase.
 
-**File:** `lib/obf.ts` — `importBoardFromOBZ(file: File, communicatorId: string): Promise<Board>`
+**Why:** Users switching from Proloquo2Go or CoughDrop should not have to rebuild their child's board from scratch.
 
-**Acceptance criteria:**
+## Files
+- lib/obf.ts                        ← edit (implement importBoardFromOBZ)
+- app/(tabs)/settings.tsx           ← edit (add import button)
+- types/index.ts                    ← read only
+- lib/supabase.ts                   ← read only
+
+## Acceptance criteria
 - [ ] Imports `.obz` from Cboard export without errors
 - [ ] Tiles with images preserve image URLs (or download and store in Supabase Storage)
 - [ ] Linked sub-boards preserved correctly
 - [ ] Import accessible from parent dashboard
 - [ ] Malformed OBF handled gracefully with user error message
+- [ ] `npx tsc --noEmit` passes
+
+## Proof of completion
+- [ ] lib/obf.ts:LINE — `export async function importBoardFromOBZ(`
+- [ ] npx tsc --noEmit — 0 errors
+
+## Constraints
+- Do not implement OBF export in this ticket — that is ACET-013
+- Do not store raw tile label text in analytics or logs — PHI per ADR-011
+- Validate MIME type and OBF version before parsing — malformed files must not crash
+
+## Notes
+- Use `expo-document-picker` to open the file picker for `.obz` — check CVEs before installing
+- OBF tiles may have absolute image URLs — download them to Supabase Storage and rewrite the URL
 
 ---
 
 ## ACET-015 — EAS build — P2 OPEN
 
+**Persona:** Stack
+**Phase:** 0
+
 **What:** Configure EAS Build for iOS (TestFlight) and Android (Play Store internal track) production builds.
 
-**File:** `eas.json` — development, preview, production profiles
+**Why:** The app has only been tested on web; physical device testing and App Store submission require EAS builds.
 
-**Acceptance criteria:**
+## Files
+- eas.json                          ← edit (finalize profiles)
+- app.json                          ← edit (add projectId, bundle identifiers)
+- .env.example                      ← read only (confirm all env vars documented)
+
+## Acceptance criteria
 - [ ] `eas build --platform ios --profile preview` completes without errors
 - [ ] `eas build --platform android --profile preview` completes without errors
 - [ ] iOS build submitted to TestFlight
 - [ ] Android build submitted to Google Play internal track
 - [ ] Production build strips all `console.log` statements
 
+## Proof of completion
+- [ ] app.json:LINE — `"projectId": "` (EAS project ID present)
+- [ ] eas.json:LINE — `"production": {` (production profile present)
+- [ ] npx tsc --noEmit — 0 errors
+
+## Constraints
+- Do not run `eas build --profile production` without Nadia's explicit sign-off
+- Do not commit `eas.json` secrets or provisioning profile data
+- Requires `eas login` + `eas init` first — document as manual step if not done
+
+## Notes
+- ⚠️ BLOCKED: `eas login` + `eas init` not yet run. No `projectId` in app.json. Do these first.
+- Production build: set `jsEngine: "hermes"` and `minification: true` in EAS profile
+- Strip console.log via Babel plugin `babel-plugin-transform-remove-console` on production profile
+
 ---
 
 ## ACET-016 — Web deploy — P2 OPEN
 
+**Persona:** Stack
+**Phase:** 0
+
 **What:** Deploy Expo web to Vercel. Ensure board screen renders correctly on desktop browsers.
 
-**File:** `vercel.json`
+**Why:** The web version serves parents managing boards on desktop — different UX needs than mobile.
 
-**Notes:**
-- Web version is for parent dashboard and account management primarily
-- Board screen on web: keyboard accessible, mouse click = tap
-- Test on Chrome and Firefox
+## Files
+- vercel.json                       ← create
+- app/(tabs)/index.tsx              ← edit (web-specific layout guards if needed)
+- package.json                      ← read only (confirm `expo export` script exists)
 
-**Acceptance criteria:**
+## Acceptance criteria
 - [ ] `npx expo export --platform web` builds without errors
 - [ ] Vercel deployment succeeds
 - [ ] Board screen functional in Chrome and Firefox
 - [ ] Authentication works on web (Clerk web SDK)
+- [ ] `npx tsc --noEmit` passes
+
+## Proof of completion
+- [ ] vercel.json:1 — `{` (file exists and is valid JSON)
+- [ ] npx expo export --platform web — 0 errors
+- [ ] npx tsc --noEmit — 0 errors
+
+## Constraints
+- Do not change mobile layout for web — use `Platform.OS === 'web'` guards only
+- Do not push to Vercel production without Nadia's approval — use preview deployment first
+
+## Notes
+- Web is for the parent dashboard primarily — full board functionality on web is a Phase 1 goal
+- Keyboard accessibility: tile grid must be focusable via Tab key on web
+- Test on Chrome (primary) and Firefox (secondary) — Safari web is Phase 1
 
 ---
 
 ## ACET-017 — PostHog + Sentry — P2 OPEN
 
+**Persona:** Stack (Shield reviews COPPA gate implementation)
+**Phase:** 0
+
 **What:** Add PostHog product analytics and Sentry crash reporting. PostHog must be disabled for child profiles.
 
-**COPPA gate (non-negotiable):**
-```typescript
-// WHY: COPPA prohibits behavioral analytics on children under 13
-// WHY: Apple Kids Category prohibits third-party analytics SDKs in child-facing screens
-function trackEvent(event: string, props?: object) {
-  const profile = communicatorStore.activeProfile
-  if (profile?.ageGroup === 'child') return  // silently no-op
-  posthog.capture(event, props)
-}
-```
+**Why:** Without crash reporting and analytics, bugs in production are invisible and product decisions are guesswork.
 
-**Acceptance criteria:**
+## Files
+- lib/analytics.ts                  ← create (PostHog wrapper with child gate)
+- hooks/usePostHog.ts               ← create (per ACET-023 requirement)
+- app/_layout.tsx                   ← edit (init Sentry + PostHog providers)
+- store/communicatorStore.ts        ← read only (activeProfile.ageGroup)
+
+## Acceptance criteria
 - [ ] PostHog events fire for adult/elderly profiles
-- [ ] PostHog events are silently blocked for child profiles
+- [ ] PostHog events are silently blocked for child profiles — `posthog.optOut()` called immediately on child profile activation
 - [ ] Sentry captures crashes with stack traces
-- [ ] Sentry does not log any PII (user IDs are Clerk UUIDs only, no email/name)
+- [ ] Sentry does not log any PII — user IDs are Clerk UUIDs only, no email/name, no tile labels
 - [ ] `npx tsc --noEmit` passes
+
+## Proof of completion
+- [ ] lib/analytics.ts:LINE — `if (profile?.ageGroup === 'child') return`
+- [ ] hooks/usePostHog.ts:1 — `export function usePostHog(`
+- [ ] npx tsc --noEmit — 0 errors
+
+## Constraints
+- Do not send tile labels, tile text, or any vocabulary to PostHog or Sentry — PHI per ADR-011
+- Do not enable PostHog for child profiles under any circumstance — COPPA + Apple Kids Category
+- PostHog and Sentry API keys go in `.env` only — never hardcoded
+
+## Notes
+- ⛔ SHIELD: after Stack finishes, Shield reviews that the child gate is correctly wired before DONE is marked
+- Sentry breadcrumbs: strip any breadcrumb that includes `label`, `text`, or `word` fields
+- PostHog distinct ID: use Clerk user ID (UUID) — never email or name
 
 ---
 
 ## ACET-018 — Privacy policy + parental consent — P1 OPEN
 
+**Persona:** Shield (Stack implements, Shield reviews)
+**Phase:** 0
+
 **What:** COPPA-required parental consent gate before any child communicator data is saved. Privacy policy screen accessible from onboarding and settings.
 
-**COPPA requirements:**
-- Consent screen shown when `age_group = 'child'` is selected in onboarding
-- Parent must tap "I agree" (no pre-checked boxes)
-- Consent stored in `parental_consents` table with timestamp + consent version
-- Privacy policy readable at 6th-grade reading level (check with Hemingway App)
-- Data deletion option must be accessible from settings
+**Why:** Storing any data about a child without documented parental consent is illegal under COPPA and will result in App Store rejection.
 
-**Acceptance criteria:**
-- [ ] Consent screen appears when child profile is created
-- [ ] Consent record written to `parental_consents` before communicator record is created
-- [ ] Consent cannot be skipped (no back button on consent screen)
-- [ ] Privacy policy text is accessible from onboarding and settings
+## Files
+- app/(onboarding)/consent.tsx      ← edit (implement full consent UI — currently stub)
+- app/(onboarding)/who-for.tsx      ← edit (verify child path writes consent before communicator)
+- hooks/useConsent.ts               ← create
+- types/index.ts                    ← read only (ParentalConsent type)
+
+## Acceptance criteria
+- [ ] Consent screen appears when child profile is created — cannot be skipped
+- [ ] Consent record written to `parental_consents` BEFORE communicator record is created
+- [ ] No back button on consent screen — user cannot navigate away without agreeing or cancelling
+- [ ] "I agree" button requires explicit tap — no pre-checked checkbox
+- [ ] Privacy policy text is readable from onboarding and settings
 - [ ] Data deletion removes all communicator data and consent record
+- [ ] `npx tsc --noEmit` passes
+
+## Proof of completion
+- [ ] app/(onboarding)/consent.tsx:LINE — `await insertConsentRecord(` (consent written before communicator)
+- [ ] hooks/useConsent.ts:1 — `export function useConsent(`
+- [ ] npx tsc --noEmit — 0 errors
+
+## Constraints
+- Do not create the communicator record before the consent record is committed to Supabase
+- Do not add a "skip" or "back" button on the consent screen
+- Privacy policy text must be at 6th-grade reading level — use Hemingway App to verify before shipping
+- ⚠️ BLOCKED: privacy policy requires legal review before this ticket can be fully marked DONE
+
+## Notes
+- Consent version: hardcode `'v1.0'` for Phase 0 — update when policy changes
+- ip_hash: hash the IP server-side, never store raw IP — use SHA-256
+- ⛔ SHIELD: consent flow must be reviewed by Shield before DONE is marked
 
 ---
 
 ## ACET-019 — Accessibility audit — P1 OPEN
 
-**What:** Full accessibility review of all Phase 0 screens against the ACCESS checklist in CLAUDE.md and README.md.
+**Persona:** Access
+**Phase:** 0
 
-**Audit each screen against:**
+**What:** Full accessibility review of all Phase 0 screens against the ACCESS checklist in CLAUDE.md.
+
+**Why:** This app is built for people who depend on it to communicate — inaccessible UI is not a bug, it's a mission failure.
+
+## Files
+- app/(tabs)/index.tsx              ← read only (audit)
+- components/board/Tile.tsx        ← read only (audit)
+- components/board/TileGrid.tsx    ← read only (audit)
+- components/board/SentenceStrip.tsx ← read only (audit)
+- app/(onboarding)/welcome.tsx     ← read only (audit)
+- app/(onboarding)/language.tsx    ← read only (audit)
+- app/(onboarding)/who-for.tsx     ← read only (audit)
+- app/(auth)/sign-in.tsx           ← read only (audit)
+- app/(auth)/sign-up.tsx           ← read only (audit)
+
+## Acceptance criteria
 - [ ] All interactive elements have `accessibilityLabel`
 - [ ] All images have `accessibilityLabel` or `accessible={false}`
-- [ ] Touch targets ≥ 44pt (verify with Accessibility Inspector on device)
-- [ ] Text does not truncate
+- [ ] Touch targets ≥ 44pt verified with Accessibility Inspector
+- [ ] Text does not truncate on any screen
 - [ ] Color contrast passes WCAG AA (use Colour Contrast Analyser)
 - [ ] VoiceOver (iOS) navigates logically through every screen
 - [ ] TalkBack (Android) navigates logically through every screen
 - [ ] No animation without `useReducedMotion()` check
 - [ ] Error states communicated via text, not color/icon only
 - [ ] Elderly mode tested with 56pt tiles and 24px labels
+- [ ] Any failing item: open a `ACET-A11Y-XXX` bug ticket before marking DONE
 
-**Any failing item:** Open a `ACET-A11Y-XXX` bug ticket and document the issue before marking ACET-019 done.
+## Proof of completion
+- [ ] All screens audited — findings listed below or in linked GitHub issues
+- [ ] npx tsc --noEmit — 0 errors
+
+## Constraints
+- Do not modify code in this ticket — audit only; open bug tickets for failures
+- Do not mark DONE until every failing item has a corresponding `ACET-A11Y-XXX` ticket
+
+## Notes
+- Test on a physical device if possible — simulator does not fully reflect touch target sizes
+- Accessibility Inspector (Xcode) and TalkBack dev settings are the canonical verification tools
 
 ---
 
 ## ACET-020 — Beta testing setup — P2 OPEN
 
+**Persona:** Stack
+**Phase:** 0
+
 **What:** Distribute to internal beta testers via TestFlight (iOS) and Google Play internal track (Android). Set up a basic feedback form.
 
-**Acceptance criteria:**
+**Why:** External feedback before public launch catches usability issues that internal testing misses.
+
+## Files
+- eas.json                          ← read only (confirm preview profile exists)
+- app/(tabs)/settings.tsx           ← edit (add feedback email + known issues link)
+- package.json                      ← read only
+
+## Acceptance criteria
 - [ ] At least 3 external beta testers added to TestFlight
 - [ ] Android build available via Google Play internal track
 - [ ] PostHog survey configured to appear after 3 app sessions
-- [ ] Feedback email address documented in app settings
+- [ ] Feedback email address documented in app settings screen
 - [ ] Known issues documented in a pinned GitHub issue
+
+## Proof of completion
+- [ ] app/(tabs)/settings.tsx:LINE — feedback email address present in UI
+- [ ] npx tsc --noEmit — 0 errors
+
+## Constraints
+- Do not submit to App Store public review — internal track only
+- Requires ACET-015 (EAS build) to be DONE before this ticket can start
+
+## Notes
+- Depends on ACET-015 — do not start until EAS builds are working
+- PostHog survey: configure in PostHog dashboard, not in code — no code changes needed
 
 ---
 
@@ -808,131 +1023,7 @@ function trackEvent(event: string, props?: object) {
 
 ---
 
-## ACET-005 — Home board screen — P1 OPEN
-
-**What:** Build the main communication board screen. User signs in → completes onboarding → lands on the home board showing the 3×3 (or 2×3 for elderly) grid of communication tiles with a persistent sentence strip at the bottom.
-
-**Files to create/modify:**
-- `app/(tabs)/(home)/index.tsx` — home board screen
-- `app/(tabs)/_layout.tsx` — bottom tabs: Home, Boards, Settings
-- `components/board/HomeBoard.tsx` — board grid container
-- `hooks/useHomeBoardData.ts` — fetch communicator + home board from Supabase
-
-**Dependencies:** ACET-002 (Supabase schema running), ACET-003 (auth working), ACET-004 (onboarding done)
-
-**Access checklist (from CLAUDE.md):**
-- [ ] All interactive elements have `accessibilityLabel`
-- [ ] Touch targets are minimum 44×44pt
-- [ ] Text is not truncated
-- [ ] Tile press registers on touch-down (immediate audio feedback)
-- [ ] Screen works with VoiceOver (iOS) and TalkBack (Android)
-- [ ] No animation plays unless `useReducedMotion()` returns false
-
-**Acceptance criteria:**
-- [ ] Home board renders 3×3 grid (or 2×3 for elderly) of tiles from Supabase
-- [ ] Each tile shows label text (no image yet — ACET-006)
-- [ ] Language toggle in header switches grid language live (changes all labels)
-- [ ] Empty state: if home board is empty, show "Create your first board" CTA
-- [ ] Sentence strip (stub) persists at bottom (implemented fully in ACET-008)
-- [ ] All tiles have `accessibilityLabel` set to tile label
-- [ ] Touch targets ≥ 44×44pt
-- [ ] `npx tsc --noEmit` passes
-
-**Notes:**
-- The grid layout is responsive: web shows 3×3, mobile shows 3×3 for adults/children, 2×3 for elderly
-- Language toggle must respect `useOnboardingStore()` to stay in sync with selected language
-- Tile press routing comes in ACET-009 (navigation) — for now, just log the press
-
----
-
-## ACET-006 — Tile component — P1 OPEN
-
-**What:** Build the reusable `Tile` component with accessible labels, 44pt+ touch targets, and immediate audio feedback on press (TTS audio comes in ACET-007).
-
-**Files to create/modify:**
-- `components/board/Tile.tsx` — core tile component
-- `components/board/TileGrid.tsx` — grid layout wrapper (reuse in home, category boards)
-
-**Access checklist:**
-- [ ] Touch target ≥ 44×44pt (minimum)
-- [ ] All tiles have `accessibilityLabel` (spoken by screen reader)
-- [ ] All tiles have `accessibilityRole="button"`
-- [ ] All tiles have `accessibilityHint` (e.g., "Double tap to speak")
-- [ ] Text label does not truncate (wrap or resize tile)
-- [ ] Background color is configurable (tiles can have different colors)
-- [ ] Image placeholder (gray box for now — actual images in ACET-013/014)
-
-**Acceptance criteria:**
-- [ ] `Tile` component accepts: `label` (string), `color` (optional), `onPress` (callback)
-- [ ] Label is centered, 18px+ font size, never truncated
-- [ ] `onPressIn` callback fires immediately on touch-down (for audio feedback)
-- [ ] `onPress` callback fires on touch release (for board navigation, ACET-009)
-- [ ] Component is styled with Nativewind (tailwind classes)
-- [ ] Works on iOS, Android, and web
-- [ ] All accessibility props set: `accessibilityLabel`, `accessibilityRole`, `accessibilityHint`
-- [ ] `npx tsc --noEmit` passes
-
-**Notes:**
-- Tile size: 80×80pt on mobile (44pt+ and good for elderly users)
-- Grid gap: 8pt between tiles
-- Tile press: `onPressIn` triggers immediately, `onPress` triggers on release
-  - This design gives users immediate feedback (audio) while allowing touch-up navigation
-
----
-
-## ACET-007 — TTS integration — P1 OPEN
-
-**What:** Integrate Azure Neural TTS to generate and cache audio for communication tiles. When a tile is pressed, play the tile's label in the user's selected language (from `useOnboardingStore`).
-
-**Files to create/modify:**
-- `lib/azure-tts.ts` — TTS client, caching logic, Cloudflare R2 upload
-- `hooks/useTtsAudio.ts` — custom hook to fetch/play cached audio
-- `constants/languages.ts` — expand with Azure Neural voice IDs per language
-
-**Environment variables needed:**
-```
-EXPO_PUBLIC_AZURE_TTS_ENDPOINT=https://<region>.tts.speech.microsoft.com/
-EXPO_AZURE_TTS_KEY=<key>            # Server-side only
-EXPO_PUBLIC_CLOUDFLARE_R2_BUCKET=...
-EXPO_CLOUDFLARE_R2_KEY=...
-EXPO_CLOUDFLARE_R2_SECRET=...
-```
-
-**Free tier languages (from CLAUDE.md):**
-- English (en-US): `en-US-AriaNeural` (female)
-- Spanish (es-MX): `es-MX-DaliaNeural` (female)
-- Thai (th-TH): `th-TH-PremwadeeNeural` (female)
-- Vietnamese (vi-VN): `vi-VN-HoaiMyNeural` (female)
-- Tagalog (tl-PH): `tl-PH-AngelNeural` (female)
-- Haitian Creole (ht-HT): Use `en-US` as fallback, document for Phase 1 custom voice
-
-**Acceptance criteria:**
-- [ ] Azure TTS client created (`lib/azure-tts.ts`) with methods: `generateAudio(text, language)`, `cacheKey(language, text)`
-- [ ] Cloudflare R2 integration to cache `.mp3` files by hash (avoid re-generating same phrase)
-- [ ] `useTtsAudio(label, language)` hook returns `{ url, isLoading, error }`
-- [ ] Tile press triggers audio playback via `onPressIn` callback
-- [ ] Audio plays without blocking navigation (async)
-- [ ] Fallback text if TTS fails: tile label shows on screen (user still communicates)
-- [ ] Azure TTS API calls are logged (not the output, just calls for cost tracking)
-- [ ] `npx tsc --noEmit` passes
-
-**Notes:**
-- TTS generation happens server-side (via a small Node.js API endpoint on Railway)
-  - Client sends: `{ text, language }` → Server calls Azure → uploads to R2 → returns `url`
-  - This keeps Azure key server-side and avoids latency on first-time audio generation
-- Audio is cached by hash so the same phrase in the same language always returns the same URL
-- If Azure TTS fails, show text on screen — never crash or go silent
-- Audio playback: use React Native `Sound` library (or Expo `Audio` module)
-
-**Shield notes:**
-- Azure API calls must include error logging (quota exceeded, bad language code, etc.)
-- If TTS fails, gracefully fall back to text-only — do not leave the user unable to communicate
-
----
-
----
-
-## ACET-021 — Supabase RLS infinite recursion fix — P0 OPEN
+## ACET-021 — Supabase RLS infinite recursion fix — P0 DONE ✓
 
 **What:** The `communicator_owner_or_supervisor` policy on `communicators` subqueries `supervisors`, which itself subqueries `communicators` — PostgreSQL detects this as infinite recursion (error 42P17). The app cannot query boards or tiles until this is resolved.
 
@@ -956,7 +1047,7 @@ EXPO_CLOUDFLARE_R2_SECRET=...
 
 ---
 
-## ACET-022 — Persistent Redis rate limiting for TTS — P0 OPEN
+## ACET-022 — Persistent Redis rate limiting for TTS — P0 DONE ✓
 
 **What:** `server/routes/tts.ts` uses an in-memory JS `Map` for rate limiting. This resets on every Railway container restart/sleep — anyone can exhaust the Azure TTS free tier quota by triggering a restart then hammering the endpoint.
 
@@ -989,149 +1080,278 @@ UPSTASH_REDIS_REST_TOKEN= # from Upstash console
 
 ## ACET-023 — COPPA hard gate — P0 OPEN
 
+**Persona:** Shield
+**Phase:** 0
+
 **What:** ⛔ SHIELD — `age_group = 'child'` is selected in onboarding but no consent record is written before the `communicators` row is created. This violates COPPA. The consent screen (`app/(onboarding)/consent.tsx`) is a stub.
 
-**Required flow:**
-1. Who-for screen selects `child` → navigate to consent screen (already wired)
-2. Consent screen: show privacy policy summary, require explicit "I agree" tap (no pre-check)
-3. On agree: write `parental_consents` row first, then create `communicators` row
-4. PostHog: call `posthog.optOut()` immediately when `age_group = 'child'` is confirmed
+**Why:** Storing any data about a child without documented parental consent is a federal COPPA violation that can result in fines and App Store removal.
 
-**Files:**
-- `app/(onboarding)/consent.tsx` — implement full consent UI
-- `app/(onboarding)/who-for.tsx` — verify child path passes consent before creating record
-- `hooks/usePostHog.ts` (new) — wraps PostHog with child-profile gate
+## Files
+- app/(onboarding)/consent.tsx      ← edit (implement full consent UI)
+- app/(onboarding)/who-for.tsx      ← edit (verify child path writes consent before communicator)
+- hooks/usePostHog.ts               ← create (PostHog wrapper with child gate)
 
-**SHIELD:**
+## Acceptance criteria
+- [ ] Child communicator cannot be created without a `parental_consents` row
+- [ ] Consent screen cannot be back-navigated past (no back button shown)
+- [ ] PostHog events disabled for child profiles — `posthog.optOut()` called on child profile activation
+- [ ] Consent timestamp + version stored in `parental_consents`
+- [ ] `tsc --noEmit` passes
+
+## Proof of completion
+- [ ] app/(onboarding)/consent.tsx:LINE — `await supabase.from('parental_consents').insert(`
+- [ ] app/(onboarding)/who-for.tsx:LINE — consent route is navigated to before communicator creation
+- [ ] hooks/usePostHog.ts:1 — `export function usePostHog(`
+- [ ] npx tsc --noEmit — 0 errors
+
+## Constraints
 - Consent record must be inserted BEFORE the communicator record — never after
 - No `posthog.capture()` calls allowed when active profile is `child`
 - "I agree" button must require affirmative tap — no pre-checked checkbox
 
-**Acceptance criteria:**
-- [ ] Child communicator cannot be created without a `parental_consents` row
-- [ ] Consent screen cannot be back-navigated past (no back button shown)
-- [ ] PostHog events disabled for child profiles
-- [ ] Consent timestamp + version stored in `parental_consents`
-- [ ] `tsc --noEmit` passes
+## Notes
+- ⚠️ BLOCKED: privacy policy text requires legal review before full consent screen can ship
+- Consent version: hardcode `'v1.0'` for now — update field when policy version changes
 
 ---
 
 ## ACET-024 — R2 audio cache security audit — P1 OPEN
 
-**What:** ⛔ SHIELD — TTS cache keys are derived from `sha256(text)` + language. If a user speaks medical/PII text, the hash is cryptographically irreversible (safe), but the R2 bucket `ACL: public-read` means anyone with the URL can access the audio.
+**Persona:** Shield
+**Phase:** 0
 
-**Tasks:**
-- Verify `ttsKey()` in `lib/r2-cache.ts` uses SHA-256 (already does — confirm 16-char truncation is safe)
-- Verify R2 bucket does NOT allow public listing (only direct URL access is acceptable)
-- Document the acceptable risk: audio URLs are unguessable 256-bit hashes — direct URL access without listing is acceptable for cached TTS audio (no PII in the file path)
-- Confirm `ACL: public-read` is on objects, not on the bucket's list permission
+**What:** ⛔ SHIELD — TTS cache keys are derived from `sha256(text)` + language. Verify the hashing is correct and the R2 bucket does not allow public listing.
 
-**Acceptance criteria:**
+**Why:** A bucket misconfiguration that allows listing would expose the full set of phrases users have spoken — which is PHI (ADR-011).
+
+## Files
+- lib/r2-cache.ts                   ← edit (add security note, confirm SHA-256 full hex)
+- DECISIONS.md                      ← edit (add ADR-011 R2 access policy note if missing)
+
+## Acceptance criteria
 - [ ] `ttsKey()` confirmed to use full SHA-256 hex (16-char prefix reviewed and documented)
-- [ ] R2 bucket public listing is disabled (verify in Cloudflare dashboard)
+- [ ] R2 bucket public listing is disabled (verify in Cloudflare dashboard — manual step)
 - [ ] Security note added to `lib/r2-cache.ts` explaining the hashing rationale
-- [ ] DECISIONS.md updated: ADR-011 — Data classification and R2 access policy
+- [ ] DECISIONS.md updated: ADR-011 — Data classification and R2 access policy (if not already present)
+
+## Proof of completion
+- [ ] lib/r2-cache.ts:LINE — `// WHY: SHA-256` (security comment present)
+- [ ] DECISIONS.md:LINE — `ADR-011` (entry present)
+- [ ] npx tsc --noEmit — 0 errors
+
+## Constraints
+- Do not change the hashing algorithm or key format — any change invalidates the existing R2 cache
+- Do not add new R2 bucket policies without documenting the change in DECISIONS.md
+
+## Notes
+- The 16-char SHA-256 prefix reduces key length but also reduces collision resistance — document whether full hex should be used instead
+- Manual step: verify bucket listing is off in the Cloudflare R2 dashboard
 
 ---
 
 ## ACET-025 — Context file updates for PHI/security directives — P1 OPEN
 
+**Persona:** Shield
+**Phase:** 0
+
 **What:** Add security directives surfaced by the 2026-06-09 security review to `CLAUDE.md`, `AGENTS.md`, and `DECISIONS.md`.
 
-**Changes:**
-- `CLAUDE.md` Shield persona: mandate `expo-secure-store` for any local profile caching; verify Clerk JWT custom claims before generating SQL
-- `AGENTS.md`: add pre-flight dependency CVE check step; note `uuid@8.3.2` blocker
-- `DECISIONS.md`: ADR-011 — data classification (custom vocabulary and uploaded media = PHI, never sent to external analytics)
+**Why:** Security rules not written into context files will be forgotten in the next agent session.
 
-**Acceptance criteria:**
-- [ ] `CLAUDE.md` Shield section updated
-- [ ] `AGENTS.md` preflight check documented
-- [ ] `DECISIONS.md` ADR-011 added
+## Files
+- CLAUDE.md                         ← edit (Shield section: expo-secure-store mandate, JWT claim check)
+- AGENTS.md                         ← edit (preflight CVE check step, uuid blocker note)
+- DECISIONS.md                      ← edit (ADR-011 if not already present)
+
+## Acceptance criteria
+- [ ] `CLAUDE.md` Shield section updated with `expo-secure-store` mandate for local profile caching
+- [ ] `AGENTS.md` Stack section includes preflight CVE check before any new dependency
+- [ ] `DECISIONS.md` ADR-011 present — data classification (vocabulary + media = PHI)
+
+## Proof of completion
+- [ ] CLAUDE.md:LINE — `expo-secure-store` (mandate present in Shield section)
+- [ ] AGENTS.md:LINE — `Pre-flight before adding any dependency` (check step present)
+- [ ] DECISIONS.md:LINE — `ADR-011` (entry present)
+
+## Constraints
+- Do not rewrite existing ADRs — append only
+- Do not change the structure of AGENTS.md sections — add within existing sections only
+
+## Notes
+- Check AGENTS.md and CLAUDE.md current state before editing — some of these may already be present from a prior session
 
 ---
 
 ## ACET-026 — Zod runtime validation for Supabase responses — P1 OPEN
 
+**Persona:** Stack
+**Phase:** 0
+
 **What:** Supabase query results are typed at compile time but unvalidated at runtime. A schema migration or data inconsistency causes silent wrong-type data into Zustand stores, which can crash the board screen mid-communication.
 
-**Files:**
-- `lib/schemas.ts` (new) — Zod schemas for `Communicator`, `Board`, `Tile` as returned by Supabase
-- `hooks/useHomeBoardData.ts` — parse results through schemas
-- `hooks/useBoardNavigation.ts` — parse board + tiles through schemas
-- `store/boardStore.ts` — guard `setHome`/`push` with schema parse
+**Why:** A crash during a communication session means the person using the app cannot speak. Runtime validation is the last line of defence.
 
-**Acceptance criteria:**
+## Files
+- lib/schemas.ts                    ← create (Zod schemas for Communicator, Board, Tile)
+- hooks/useHomeBoardData.ts         ← edit (parse results through schemas)
+- hooks/useBoardNavigation.ts       ← edit (parse board + tiles through schemas)
+- store/boardStore.ts               ← edit (guard setHome/push with schema parse)
+
+## Acceptance criteria
 - [ ] Malformed `communicators` row: hook returns `error` state, does not crash
-- [ ] Malformed `tiles` row: tile skipped, others still render
+- [ ] Malformed `tiles` row: tile skipped with logged warning, others still render
 - [ ] `tsc --noEmit` passes
+
+## Proof of completion
+- [ ] lib/schemas.ts:1 — `import { z } from 'zod'`
+- [ ] hooks/useHomeBoardData.ts:LINE — `CommunicatorSchema.parse(` or `.safeParse(`
+- [ ] npx tsc --noEmit — 0 errors
+
+## Constraints
+- Do not add new Supabase tables or change the schema — validation only
+- Do not throw on invalid tiles — skip the tile and log, so the rest of the board still renders
+- Zod is already in the project — do not add a second validation library
+
+## Notes
+- Use `safeParse` not `parse` so schema failures return `{ success: false, error }` without throwing
+- Log schema parse failures with `logError` so Sentry captures them — helpful for tracking data issues post-launch
 
 ---
 
 ## ACET-027 — AudioService abstraction — P2 OPEN
 
+**Persona:** Stack
+**Phase:** 0
+
 **What:** `expo-av` calls are scattered across `hooks/useTtsAudio.ts`. Abstracting into a service makes it testable and swappable (e.g. for `expo-audio` in SDK 57+).
 
-**Files:**
-- `services/AudioService.ts` (new) — singleton: `play(url)`, `stop()`, `preload(url)`
-- `hooks/useTtsAudio.ts` — delegate to `AudioService`
+**Why:** SDK 57 deprecates `expo-av` in favour of `expo-audio`. The abstraction makes the migration a one-file change instead of a grep-and-replace.
 
-**Acceptance criteria:**
+## Files
+- services/AudioService.ts          ← create
+- hooks/useTtsAudio.ts              ← edit (delegate to AudioService)
+
+## Acceptance criteria
 - [ ] `useTtsAudio` contains no direct `expo-av` imports
 - [ ] `AudioService.play(url)` handles stop-then-play and unload-on-finish
 - [ ] `tsc --noEmit` passes
+
+## Proof of completion
+- [ ] services/AudioService.ts:1 — `import { Audio } from 'expo-av'`
+- [ ] hooks/useTtsAudio.ts:LINE — `AudioService.play(` (no direct expo-av call)
+- [ ] npx tsc --noEmit — 0 errors
+
+## Constraints
+- Do not change the `useTtsAudio` public API — callers must not need to change
+- Do not switch to `expo-audio` in this ticket — that is a future migration; just abstract the boundary
+
+## Notes
+- Singleton pattern: `AudioService` holds the current `Audio.Sound` instance so stop-before-play works globally
 
 ---
 
 ## ACET-028 — Edit mode biometric/PIN lock — P2 OPEN
 
+**Persona:** Stack
+**Phase:** 0
+
 **What:** Caregivers accidentally enter edit mode (board editing, tile deletion) and destroy the communicator's layout. A PIN or biometric check before entering edit mode prevents accidental changes.
 
-**Files:**
-- `hooks/useEditLock.ts` (new) — `requestEditAccess(): Promise<boolean>` using `expo-local-authentication`
-- `app/(tabs)/settings.tsx` — gate all destructive actions behind `useEditLock`
+**Why:** A destroyed board layout disrupts the communicator's motor memory and can cause significant distress — this is a real documented problem in AAC app usage.
 
-**Acceptance criteria:**
+## Files
+- hooks/useEditLock.ts              ← create
+- app/(tabs)/settings.tsx           ← edit (gate destructive actions behind useEditLock)
+
+## Acceptance criteria
 - [ ] Edit mode requires Face ID / Touch ID or PIN before activation
 - [ ] Falls back gracefully if biometrics unavailable (PIN only)
 - [ ] `tsc --noEmit` passes
+
+## Proof of completion
+- [ ] hooks/useEditLock.ts:1 — `export function useEditLock(`
+- [ ] app/(tabs)/settings.tsx:LINE — `useEditLock` imported and called before edit action
+- [ ] npx tsc --noEmit — 0 errors
+
+## Constraints
+- Do not gate the read-only parent dashboard behind biometrics — only destructive edit actions
+- Use `expo-local-authentication` — already in the dependency tree (verify before installing)
+
+## Notes
+- `expo-local-authentication` may not be installed yet — check `package.json` and run CVE check before adding
 
 ---
 
 ## ACET-029 — Vocabulary masking (motor-planning integrity) — P2 OPEN
 
+**Persona:** Stack
+**Phase:** 0
+
 **What:** Deleting a tile shifts all subsequent tiles, destroying the communicator's muscle memory. Masking hides a tile visually while preserving its grid position.
 
-**Schema change:** Add `masked boolean DEFAULT false` to `tiles` table.
+**Why:** AAC users develop muscle memory for tile positions. Shifting the grid when a tile is deleted is a documented harm — it can take weeks to re-learn a layout.
 
-**Files:**
-- `supabase/schema.sql` — add `masked` column migration
-- `types/index.ts` — add `masked?: boolean` to `Tile`
-- `components/board/Tile.tsx` — render as invisible placeholder when `masked`
-- `components/board/TileGrid.tsx` — masked tiles occupy space but are non-interactive
+## Files
+- supabase/schema.sql               ← read only (masked column added in ACET-021)
+- types/index.ts                    ← read only (masked?: boolean already added)
+- components/board/Tile.tsx        ← edit (render invisible placeholder when masked)
+- components/board/TileGrid.tsx    ← edit (masked tiles occupy space, non-interactive)
 
-**Acceptance criteria:**
-- [ ] Masked tile is invisible but holds grid position
+## Acceptance criteria
+- [ ] Masked tile is invisible but holds grid position (no layout shift)
 - [ ] Masked tile has `accessible={false}` — screen readers skip it
 - [ ] Unmasking restores tile at same position
 - [ ] `tsc --noEmit` passes
+
+## Proof of completion
+- [ ] components/board/Tile.tsx:LINE — `if (tile.masked) return <View` (invisible placeholder)
+- [ ] components/board/TileGrid.tsx:LINE — masked tile rendered as placeholder not skipped
+- [ ] npx tsc --noEmit — 0 errors
+
+## Constraints
+- Do not delete tiles — always mask, never delete from the grid
+- The `masked` column is already in `schema.sql` and `types/index.ts` — do not re-add it
+- Do not change the grid layout algorithm — only the tile rendering
+
+## Notes
+- The `masked` column was pre-added in ACET-021 — verify `types/index.ts` has `masked?: boolean` before editing
 
 ---
 
 ## ACET-030 — Low-stimulus mode — P2 OPEN
 
+**Persona:** Stack (Access reviews contrast after)
+**Phase:** 0
+
 **What:** Visual clutter (colors, borders, shadows) causes sensory overload for some communicators. A low-stimulus mode strips the UI to high-contrast monochrome.
 
-**Files:**
-- `store/preferencesStore.ts` (new) — `lowStimulusMode: boolean`, persisted via `expo-secure-store`
-- `components/board/Tile.tsx` — apply monochrome classes when mode active
-- `components/board/TileGrid.tsx` — remove gap/border styles in low-stimulus mode
-- `app/(tabs)/settings.tsx` — toggle
+**Why:** Sensory sensitivity is common among the AAC users this app is built for. A simpler visual mode reduces cognitive load and makes the app usable for more people.
 
-**Acceptance criteria:**
+## Files
+- store/preferencesStore.ts         ← create
+- components/board/Tile.tsx        ← edit (monochrome classes when mode active)
+- components/board/TileGrid.tsx    ← edit (remove gap/border styles in low-stimulus mode)
+- app/(tabs)/settings.tsx           ← edit (add toggle)
+
+## Acceptance criteria
 - [ ] Toggle instantly flattens UI: white background, black text, no color fills, no shadows
-- [ ] Preference persists across app restarts
+- [ ] Preference persists across app restarts (stored via `expo-secure-store`)
 - [ ] High-contrast text still passes WCAG AA (7:1 ratio in this mode)
 - [ ] `tsc --noEmit` passes
+
+## Proof of completion
+- [ ] store/preferencesStore.ts:1 — `export const usePreferencesStore`
+- [ ] components/board/Tile.tsx:LINE — `lowStimulusMode` conditional class applied
+- [ ] npx tsc --noEmit — 0 errors
+
+## Constraints
+- Do not use `AsyncStorage` for storing the preference — use `expo-secure-store` per ADR in CLAUDE.md
+- ⛔ ACCESS: after Stack finishes, Access must verify 7:1 contrast ratio before DONE is marked
+
+## Notes
+- Low-stimulus mode does not disable TTS or change behavior — visual only
+- Test against WCAG AAA (7:1) not just AA (4.5:1) — this mode is specifically for users who need maximum contrast
 
 ---
 
