@@ -33,12 +33,12 @@ with natural-sounding text-to-speech in their language.
 **The required workflow for every ticket:**
 
 1. Create a branch named after the ticket before writing any code:
-   ```
+   ```bash
    git checkout -b acet-XXX-short-description
    ```
 2. Commit work to that branch.
 3. Push the branch and open a PR with `gh pr create`:
-   ```
+   ```bash
    gh pr create --title "ACET-XXX: short description" --body "..."
    ```
 4. Stop. Do not merge. Wait for Nadia's approval after CodeRabbit review passes.
@@ -97,7 +97,7 @@ These rules apply to every ticket. They exist to reduce wasted context and keep 
 Every completed ticket must include verification in this exact format.
 A file path alone is not proof. A line number without a snippet is not proof.
 
-```
+```text
 ✅ VERIFIED: components/board/Tile.tsx:42 — `export function Tile(`
 ✅ VERIFIED: lib/supabase.ts:8 — `export const supabase = createClient(`
 ✅ VERIFIED: server/routes/tts.ts:15 — `app.post('/api/tts', rateLimitMiddleware,`
@@ -159,7 +159,7 @@ REST APIs, TTS integration, real-time sync, Zustand, Upstash Redis
 `payment`, `billing`, `subscription`, `token`, `session`, `password`, `consent`
 
 **When triggered, respond with:**
-```
+```text
 ⛔ SHIELD REVIEW REQUIRED
 Issue: [What the problem is]
 Risk: [What could go wrong]
@@ -227,7 +227,7 @@ Agents use `## Files` to scope their reads. Agents populate `## Proof` when mark
 
 ## Tech Stack
 
-```
+```text
 Frontend       Expo (React Native) + React Native Web
 Styling        Nativewind v4 (Tailwind for React Native)
 Navigation     Expo Router (file-based routing)
@@ -261,7 +261,7 @@ Validation     Zod (all external API and user input)
 
 ## Architecture Overview
 
-```
+```text
 ┌─────────────────────────────────────────────────────┐
 │  Client (Expo — iOS / Android / Web)                │
 │  ┌──────────────┐  ┌──────────────┐  ┌───────────┐ │
@@ -416,7 +416,7 @@ A ticket is DONE when:
 
 ## Red Flags — Stop, Comment, Ask Before Continuing
 
-```
+```text
 🔴 STOP: Storing any PII about a child without documented parental consent flow
 🔴 STOP: Skipping or weakening RLS on any Supabase table
 🔴 STOP: Writing an API key, secret, or password into source code
