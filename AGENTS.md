@@ -63,6 +63,28 @@ Document the blocker here and stop — do not work around it or guess.
 
 ---
 
+## Git Branching Rule — Non-Negotiable
+
+**Never push directly to `main`.** Branch protection requires a PR and a passing CodeRabbit review. Direct pushes bypass these checks and are not allowed.
+
+**Required workflow for every ticket:**
+
+1. Before writing any code, create a branch:
+   ```
+   git checkout -b acet-XXX-short-description
+   ```
+2. Commit all work to that branch.
+3. Push and open a PR:
+   ```
+   gh pr create --title "ACET-XXX: short description" --body "..."
+   ```
+4. Stop. Do not merge. Nadia reviews after CodeRabbit passes, then merges via GitHub UI.
+
+**Branch naming:** `acet-XXX-kebab-description` (e.g. `acet-023-coppa-hard-gate`)
+**One branch per ticket. Never push to `main` directly.**
+
+---
+
 ## Ticket Scope Rules
 
 **These rules exist to conserve tokens and prevent unintended changes outside ticket scope.**

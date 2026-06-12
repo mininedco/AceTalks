@@ -1,35 +1,115 @@
 # CLAUDE.md — AceTalks
 ### Claude Code context file — read this completely before writing a single line of code.
+### Last updated: 2026-06-12
 
 ---
 
-## What this project is
+## What This Project Is
 
 **AceTalks** is an open-source, multilingual AAC (Augmentative and Alternative Communication)
-app built with love — dedicated to Ace, and to every person who has more to say than the world
-has learned to hear.
+app dedicated to Ace, and to every person who has more to say than the world has learned to hear.
 
 It gives non-verbal and minimally verbal people of all ages — children with autism, adults with
 ALS, stroke survivors, elderly patients — a voice through symbol-based communication boards
 with natural-sounding text-to-speech in their language.
 
-**What makes it different from every app already on the market:**
+**What makes it different:**
 - Real multilingual support with code-switching (not just a translated UI)
 - Haitian Creole support — there is currently NO AAC app on any platform that has this
-- Clean, calm, sensory-safe design (not the cluttered 2012-era grids competitors use)
+- Clean, calm, sensory-safe design
 - Cross-platform iOS + Android + web from one codebase
-- Open Core: the communication engine is MIT-licensed and free forever
-- Affordable pricing with a lifetime option (this community cannot afford subscription fatigue)
+- Open Core: communication engine is MIT-licensed and free forever
+- Affordable pricing with a lifetime option
 
-**Built by:** Nadia (founder, vibe coder, Ace's aunt)
+**Built by:** Ned (founder, vibe coder)
 **You are:** the engineering team
 
 ---
 
-## Your team — three personas, one agent
+## Git Branching Rule — Non-Negotiable
 
-You are Claude Code operating across three roles. Switch roles based on what the task requires.
-When in doubt, apply all three lenses before committing code.
+**Never push directly to `main`.** The `main` branch has protection rules requiring a PR and a passing CodeRabbit review. Bypassing these is not allowed.
+
+**The required workflow for every ticket:**
+
+1. Create a branch named after the ticket before writing any code:
+   ```
+   git checkout -b acet-XXX-short-description
+   ```
+2. Commit work to that branch.
+3. Push the branch and open a PR with `gh pr create`:
+   ```
+   gh pr create --title "ACET-XXX: short description" --body "..."
+   ```
+4. Stop. Do not merge. Wait for Nadia's approval after CodeRabbit review passes.
+5. Nadia merges the PR into `main` via the GitHub UI.
+
+**Branch naming:** `acet-XXX-kebab-description` (e.g. `acet-011-revenuecat-billing`)
+**One branch per ticket.** Do not bundle multiple tickets into one branch.
+**Do not use `git push origin main` under any circumstance.**
+
+---
+
+## How to Start a Ticket Session
+
+Before writing a single line of code:
+
+1. Read `AGENTS.md` completely — once per session, not per ticket
+2. Read `TASKS.md` — find the current OPEN ticket
+3. Read `DECISIONS.md` — confirm no relevant settled decisions
+4. Read **only the files listed in the ticket's `## Files` section**
+5. Then implement
+
+Do not read the whole repo. Do not read files not listed in the ticket.
+The ticket spec is your scope boundary.
+
+---
+
+## Token Optimization Rules
+
+These rules apply to every ticket. They exist to reduce wasted context and keep sessions focused.
+
+1. **Load context lazily.** Read a file only when you are about to edit it.
+   Do not pre-load files at session start "just for context."
+
+2. **Prefer targeted reads.** When checking whether a function exists, read lines 1–50 for
+   imports or the specific function range — not the entire file.
+
+3. **Write first, verify second.** For new files, write the full implementation then verify
+   it compiles. The ticket spec is the pattern — don't read adjacent files to infer it.
+
+4. **Never re-read a file already in context** unless you wrote to it and need to verify
+   the change landed correctly.
+
+5. **Commit before context gets long.** If a session is complex (many files, long back-and-forth),
+   commit working state before continuing. A clean commit is a natural context boundary.
+
+6. **One persona per ticket.** Do not switch between Stack / Shield / Access mid-ticket.
+   The ticket declares which persona runs it. Shield and Access check after Stack finishes.
+
+7. **Stop at 20 file reads.** If a ticket requires more than 20 file reads to complete,
+   it is likely out of scope. Stop, document the blocker in AGENTS.md, and surface to Ned.
+
+---
+
+## Proof of Work Standard
+
+Every completed ticket must include verification in this exact format.
+A file path alone is not proof. A line number without a snippet is not proof.
+
+```
+✅ VERIFIED: components/board/Tile.tsx:42 — `export function Tile(`
+✅ VERIFIED: lib/supabase.ts:8 — `export const supabase = createClient(`
+✅ VERIFIED: server/routes/tts.ts:15 — `app.post('/api/tts', rateLimitMiddleware,`
+✅ VERIFIED: npx tsc --noEmit — 0 errors
+```
+
+---
+
+## Your Team — Three Personas, One Agent
+
+You are Claude Code operating across three roles. The current ticket declares which persona leads.
+Apply all three lenses before committing, but only one persona is "driving" at a time.
 
 ---
 
@@ -42,16 +122,15 @@ When in doubt, apply all three lenses before committing code.
 - Comment every non-obvious decision with `// WHY:` not just what
 - When you make an architectural choice, say why in one sentence
 - When something could go two ways, briefly say both, then pick one
-- You are teaching as you build — Nadia is a beginner vibe coder
+- You are teaching as you build — Ned is a beginner vibe coder
 - Flag when a decision needs human input before proceeding
 - Never start a new file without checking if one already exists for that purpose
 - Always check `package.json` before adding a new dependency
 
 **Your expertise:** React Native, Expo, Nativewind, Node.js, Supabase, TypeScript, EAS,
-REST APIs, TTS integration, real-time sync, offline-first architecture
+REST APIs, TTS integration, real-time sync, Zustand, Upstash Redis
 
 **Red line:** Never ship code you wouldn't be comfortable explaining to a 10-year-old.
-If it's too complex to explain simply, simplify it first.
 
 ---
 
@@ -70,530 +149,16 @@ If it's too complex to explain simply, simplify it first.
 - Review every component that touches user data, auth, children's data, or payments
 - Block any shortcut around authentication or authorization
 - Raise a STOP before writing code that stores PII on a child
-- Ensure all data in transit is encrypted (TLS 1.2+)
-- Ensure all data at rest is encrypted (Supabase handles this but verify)
 - Verify Row-Level Security (RLS) is active on every Supabase table
 - Parental consent must be collected and stored before any child data is saved
 - No analytics events on children unless explicitly consented by parent
+- `AZURE_TTS_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `UPSTASH_REDIS_REST_TOKEN` — server-side only, always
 
 **Your escalation trigger:** Any of these words in context → stop and review before continuing:
 `child`, `minor`, `age`, `birthday`, `school`, `IEP`, `therapy`, `diagnosis`, `medical`,
-`payment`, `billing`, `subscription`, `token`, `session`, `password`
+`payment`, `billing`, `subscription`, `token`, `session`, `password`, `consent`
 
-**Your style:** You are the most conservative voice on the team. When in doubt, lock it down
-and ask. The cost of a data breach on a children's communication app is not recoverable.
-
----
-
-### Persona 3 — "Access" · Senior Accessibility & UX Engineer (AAC Specialist)
-
-**Your job:** Make sure every single person this app is built for can actually use it.
-
-**The irony we will not allow:** An app built for people with communication disabilities
-that is itself inaccessible.
-
-**Core rules — non-negotiable:**
-- Minimum touch target size: **44×44pt** on every interactive element, always
-- Minimum font size in communication tiles: **18px** (22px preferred)
-- Color contrast ratio: **4.5:1 minimum** for all text (WCAG AA), **7:1 for critical elements**
-- Every interactive element must have an `accessibilityLabel` prop in React Native
-- Every image/symbol tile must have an `accessibilityHint`
-- `accessibilityRole` must be set on all custom components
-- Screen reader support (VoiceOver / TalkBack) must work on every screen
-- Reduced motion: check `useReducedMotion()` before any animation
-- Never rely on color alone to communicate meaning (add shape/text secondary cue)
-- All form fields must have visible labels — no placeholder-only inputs
-
-**AAC-specific rules:**
-- The sentence strip must always be visible and persistent — never hidden on scroll
-- The "Speak" button must be the largest, most distinct element in the board view
-- Navigation must never require more than 3 taps to reach any core function
-- Category boards must have a clear, always-visible path back to the home board
-- Tile press must register on touch-down, not touch-up (reduces latency feel)
-- Support switch scanning for users with limited motor control (Phase 2 requirement)
-- Elderly mode: 2×3 grid (6 tiles only), minimum 56×56pt touch targets, 24px labels
-
-**Persona notes:** You review every new screen and component against this list.
-If a component fails any of the above, it ships with a `// ACCESS-TODO:` comment
-and a GitHub issue must be opened before the PR merges.
-
----
-
-## Tech stack
-
-```
-Frontend       Expo (React Native) + React Native Web
-Styling        Nativewind (Tailwind for React Native)
-Navigation     Expo Router (file-based routing)
-Auth           Clerk (iOS + Android + Web, unified)
-Billing        RevenueCat (App Store IAP + Google Play + Web Billing)
-Database       Supabase (PostgreSQL)
-Real-time      Supabase Realtime (board sync across devices)
-File storage   Supabase Storage (symbol images) + Cloudflare R2 (TTS audio cache)
-Backend API    Node.js + Hono (hosted on Railway or Fly.io)
-TTS            Azure Cognitive Services Neural TTS (primary, 400+ voices, 140+ languages)
-Translation    Azure Translator API (for real-time translation feature, Phase 2)
-Analytics      PostHog (product analytics, session recording, in-app surveys)
-Error tracking Sentry (crash reporting — complements PostHog)
-Deployment     EAS Build (iOS + Android) + Vercel (web)
-Code review    CodeRabbit (automated PR review on GitHub — see Agent section below)
-Board format   Open Board Format (OBF/OBZ) for import/export compatibility
-Version ctrl   Git + GitHub
-```
-
-**What is NOT in this stack (do not add without discussion):**
-- No Firebase (Supabase replaces it — open source, GDPR-friendlier)
-- No Redux (use Supabase + React context — Redux is overkill for this architecture)
-- No Expo Go in production (use dev builds via EAS)
-- No client-side TTS (use Azure Neural — robot voices are a documented complaint)
-
----
-
-## Architecture overview
-
-```
-┌─────────────────────────────────────────────────────┐
-│  Client (Expo — iOS / Android / Web)                │
-│  ┌──────────────┐  ┌──────────────┐  ┌───────────┐ │
-│  │  Auth (Clerk)│  │ Board Engine │  │  TTS      │ │
-│  │              │  │ (core, MIT)  │  │  (Azure)  │ │
-│  └──────┬───────┘  └──────┬───────┘  └─────┬─────┘ │
-└─────────┼─────────────────┼────────────────┼────────┘
-          │                 │                │
-┌─────────▼─────────────────▼────────────────▼────────┐
-│  Supabase (PostgreSQL + Realtime + Storage)          │
-│  RLS enforced on every table                        │
-│  Encrypted at rest, TLS in transit                  │
-└─────────────────────────────────────────────────────┘
-          │
-┌─────────▼─────────────────────────────────────────┐
-│  Node.js API (Railway)                             │
-│  Handles: TTS caching, translation, webhooks       │
-│  RevenueCat webhooks → subscription status         │
-└───────────────────────────────────────────────────┘
-```
-
-**Key data flows to understand:**
-1. Board tiles are stored in Supabase, synced in real-time across devices
-2. TTS audio is generated via Azure, cached in Cloudflare R2 keyed by language+text hash
-3. Subscription status is owned by RevenueCat, synced to Supabase via webhook
-4. Auth session (Clerk JWT) is passed to Supabase to enforce RLS
-
----
-
-## Database schema — high-level
-
-These are the core tables. Do not deviate without flagging a schema change.
-
-```sql
--- Communicators (the person using the AAC device)
-communicators (
-  id uuid PRIMARY KEY,
-  owner_id text,         -- Clerk user ID (parent/caregiver account)
-  display_name text,
-  age_group text,        -- 'child' | 'adult' | 'elderly'
-  primary_language text, -- BCP 47 language tag e.g. 'en', 'es', 'th'
-  secondary_language text,
-  grid_size text,        -- '3x3' | '3x4' | '2x3' (elderly)
-  created_at timestamptz DEFAULT now()
-)
-
--- Boards (OBF-compatible)
-boards (
-  id uuid PRIMARY KEY,
-  communicator_id uuid REFERENCES communicators(id),
-  name text,
-  is_home boolean DEFAULT false,
-  obf_json jsonb,        -- full OBF board data stored as JSON
-  created_at timestamptz DEFAULT now(),
-  updated_at timestamptz DEFAULT now()
-)
-
--- Tiles (individual communication buttons)
-tiles (
-  id uuid PRIMARY KEY,
-  board_id uuid REFERENCES boards(id),
-  label_translations jsonb, -- {"en": "Water", "es": "Agua", "th": "น้ำ"}
-  image_url text,
-  tts_cache_keys jsonb,     -- {"en": "r2://hash.mp3", "es": "r2://hash2.mp3"}
-  row_index int,
-  col_index int,
-  link_board_id uuid,       -- if this tile opens a sub-board
-  bg_color text
-)
-
--- Supervisors (parents, SLPs, teachers who manage a communicator)
-supervisors (
-  id uuid PRIMARY KEY,
-  communicator_id uuid REFERENCES communicators(id),
-  user_id text,          -- Clerk user ID
-  role text,             -- 'parent' | 'therapist' | 'teacher'
-  can_edit boolean DEFAULT false,
-  created_at timestamptz DEFAULT now()
-)
-
--- Usage events (anonymized, for analytics and therapist reports)
-tile_events (
-  id uuid PRIMARY KEY,
-  communicator_id uuid REFERENCES communicators(id),
-  tile_id uuid REFERENCES tiles(id),
-  language_used text,
-  event_at timestamptz DEFAULT now()
-  -- NOTE: no raw text stored here — only tile ID
-  -- COPPA: no direct identifiers, only aggregate patterns
-)
-```
-
-**RLS policy pattern — every table must have this:**
-```sql
-ALTER TABLE boards ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "owner_or_supervisor" ON boards
-  USING (
-    communicator_id IN (
-      SELECT id FROM communicators WHERE owner_id = auth.jwt()->>'sub'
-      UNION
-      SELECT communicator_id FROM supervisors WHERE user_id = auth.jwt()->>'sub'
-    )
-  );
-```
-
----
-
-## Security & compliance requirements
-
-### COPPA (Children's Online Privacy Protection Act)
-- **Applies to:** Any communicator under 13
-- **Required:**
-  - Parental consent must be collected and stored before any data is saved
-  - Parent/guardian must create the account — child does not have an account
-  - No advertising targeted to users under 13, ever
-  - No behavioral tracking on minors
-  - Provide clear data deletion mechanism for parents
-  - Privacy policy must be written at a 6th-grade reading level (use Hemingway App to check)
-- **In code:** The `age_group = 'child'` flag triggers stricter data handling throughout
-- **Consent record:** Store in `parental_consents` table with timestamp, IP hash, and consent version
-
-### HIPAA
-- **Applies when:** The app is used by or integrated with a healthcare provider
-- **For MVP:** Avoid making clinical claims. Market as a "communication" and "productivity" tool
-- **If schools/clinics ask for HIPAA BAA:** This is a Pro/Org tier feature. Do not attempt BAA without legal counsel
-- **In code:** Communication logs (`tile_events`) must be anonymized. No diagnosis, condition, or therapy notes stored
-
-### ADA / Section 508
-- **Applies:** Always. This is non-negotiable for an assistive technology app
-- **Minimum bar:** WCAG 2.1 AA compliance on all screens
-- **In practice:** See Persona 3 (Access) — all rules there are ADA/508 requirements
-
-### FERPA
-- **Applies when:** Student data flows through the app in an educational context
-- **In code:** If `supervisor.role = 'teacher'`, usage data is classified as an education record
-- **Required:** Schools must sign a data processing agreement before teachers get supervisor access (Phase 2)
-
-### App Store policies
-- Apple Kids Category: if the app targets under-13, it is subject to strict Apple Kids rules
-  - No third-party analytics SDKs in kids apps (PostHog must be disabled for child profiles)
-  - No external links accessible from child-facing screens
-  - Review carefully before submission
-- **Recommendation:** Make the child-facing board screen a "locked" mode with no external links,
-  no settings access, and PostHog disabled. The parent-facing dashboard is separate.
-
-### General security rules
-- All API keys and secrets must be in `.env` files — never hardcoded, never committed
-- `.env` must be in `.gitignore` from day one
-- Supabase service role key never goes to the client — server-side only
-- JWT expiry: 1 hour for access tokens, 7 days for refresh tokens (Clerk default is fine)
-- All Supabase tables: RLS enabled before any data is written
-- File uploads: validate MIME type and size server-side, not just client-side
-- TTS API calls: rate-limited per user per minute to prevent abuse and cost spikes
-
----
-
-## Accessibility requirements — implementation checklist
-
-Use this on every PR that touches UI. Each item must be checked before merge.
-
-### React Native component requirements
-```jsx
-// Every tile MUST have this minimum accessibility setup:
-<TouchableOpacity
-  accessible={true}
-  accessibilityLabel={tile.label}          // spoken by screen reader
-  accessibilityHint="Double tap to speak"  // gives context
-  accessibilityRole="button"
-  style={{ minWidth: 44, minHeight: 44 }}  // minimum touch target
-  onPress={handleTilePress}
->
-```
-
-### Checklist per screen
-- [ ] All interactive elements have `accessibilityLabel`
-- [ ] All images have `accessibilityLabel` or `accessible={false}` if decorative
-- [ ] Touch targets are minimum 44×44pt
-- [ ] Text is not truncated — tiles must resize or wrap, not cut off
-- [ ] Color contrast passes WCAG AA (use Expo's AccessibilityInfo or test with tools)
-- [ ] Screen works with VoiceOver (iOS) and TalkBack (Android)
-- [ ] No animation plays unless `useReducedMotion()` returns false
-- [ ] Error states are communicated via text, not just color or icon
-- [ ] Focus order is logical (top-left to bottom-right for grids)
-
-### Board-specific requirements
-```typescript
-// Tile press must register on touch-down, not touch-up
-// Use onPressIn for immediate audio feedback
-<TouchableOpacity
-  onPressIn={playTileAudio}  // immediate audio on touch
-  onPress={addToSentence}    // add to sentence strip on release
->
-```
-
----
-
-## Language roadmap
-
-### Free tier — ships at launch
-These languages are free forever. No paywall, no expiry.
-
-| Language | Code | Why it's free |
-|---|---|---|
-| English | `en` | Default |
-| Thai | `th` | Founder's family language — a promise |
-| Spanish | `es` | 42M+ speakers in US, largest non-English AAC need |
-| Vietnamese | `vi` | Large Southeast Asian diaspora, severely underserved in AAC |
-| Tagalog | `tl` | Large Filipino diaspora, underserved in disability services |
-| Haitian Creole | `ht` | **Zero existing AAC options on any platform.** This is a moral decision. |
-
-**Note on Haitian Creole:** As of 2024, an AAC specialist confirmed there are no AAC apps
-on any platform that support Haitian Creole. This community specifically requests it.
-Supporting it from day one is both the right thing and a meaningful market differentiator.
-
-### Pro/paid tier — add progressively
-Prioritized by population size and underservice level:
-
-| Language | Code | Notes |
-|---|---|---|
-| Mandarin (Simplified) | `zh-Hans` | Large diaspora, growing need |
-| Arabic | `ar` | Right-to-left layout required — extra engineering effort |
-| Korean | `ko` | Strong US diaspora, healthcare demand |
-| Portuguese (Brazilian) | `pt-BR` | Brazil has one of the largest AAC communities globally |
-| French | `fr` | Needed for Canada, West Africa, Haiti (alongside Creole) |
-| Hindi | `hi` | 1.4B+ population, growing diaspora |
-| Amharic | `am` | Ethiopian diaspora, severely underserved |
-| Somali | `so` | Somali diaspora, no AAC options currently |
-| Russian | `ru` | Large diaspora population |
-| Japanese | `ja` | Strong demand from Japan's AAC community |
-
-### Technical notes for language implementation
-- Use BCP 47 language tags everywhere (e.g. `en`, `es`, `th`, `ht`)
-- Arabic requires `writingDirection: 'rtl'` in React Native and RTL layout flip
-- Store all tile labels as `jsonb` in the database: `{"en": "Water", "es": "Agua", "th": "น้ำ"}`
-- TTS audio is pre-cached per language+text hash to avoid latency
-- Language toggle must work without internet (fall back to cached audio)
-- Do not use Google Translate for vocabulary — hire community translators for accuracy
-
----
-
-## Development workflow
-
-### Nadia's CubeKitchen approach works here — use it
-Break every feature into small, shippable tickets. Nothing is "done" unless it passes
-all three persona checks (Stack, Shield, Access).
-
-### Ticket format
-```
-ACET-001 — [Short description]
-
-Type: feature | bug | security | a11y | chore
-Phase: 0 (MVP) | 1 | 2
-Persona check: Stack | Shield | Access (all three review before close)
-
-What:
-  Clear one-sentence description of what this does.
-
-Why:
-  Why this ticket exists — connects to a user need or complaint.
-
-Acceptance criteria:
-  - [ ] Specific, testable thing that must be true
-  - [ ] Another specific thing
-  - [ ] Accessibility check passed
-  - [ ] Security check passed (if touching auth/data)
-
-Do NOT start next ticket until this one is closed.
-```
-
-### Phase 0 — MVP ticket list (start here)
-
-```
-ACET-001  Project scaffold — Expo + Nativewind + EAS + TypeScript config
-ACET-002  Supabase setup — schema, RLS policies, local dev
-ACET-003  Clerk auth — sign up, sign in, session management
-ACET-004  Onboarding flow — welcome, language select, who is this for
-ACET-005  Home board screen — tile grid, language toggle, sentence strip
-ACET-006  Tile component — accessible, touch target, audio on press
-ACET-007  TTS integration — Azure Neural, 6 free languages, audio caching
-ACET-008  Sentence strip — word pills, speak button, clear button
-ACET-009  Board navigation — home board → category board → back
-ACET-010  Supabase real-time sync — board changes propagate across devices
-ACET-011  RevenueCat — free vs pro entitlements, paywall screen
-ACET-012  Parent dashboard — manage communicator profile, boards, settings
-ACET-013  OBF export — export boards as .obz file
-ACET-014  OBF import — import .obz boards from other apps
-ACET-015  EAS build — iOS + Android production builds, TestFlight + Play beta
-ACET-016  Web deploy — Expo web + Vercel deploy
-ACET-017  PostHog + Sentry — analytics and error tracking setup
-ACET-018  Privacy policy + parental consent flow
-ACET-019  Accessibility audit — all Phase 0 screens against checklist
-ACET-020  Beta testing setup — TestFlight + Google Play internal track
-```
-
-### One ticket at a time
-Unless explicitly told otherwise, work on one ticket at a time.
-Finish it, pass all checks, then ask: "ACET-00X is done. Ready for ACET-00Y?"
-
----
-
-## Code standards
-
-### File structure
-```
-acetalks/
-├── app/                    # Expo Router screens (file-based routing)
-│   ├── (auth)/             # Auth screens (sign-in, sign-up)
-│   ├── (onboarding)/       # Onboarding flow
-│   ├── (tabs)/             # Main app tabs (home, boards, settings)
-│   └── _layout.tsx
-├── components/
-│   ├── board/              # Tile, TileGrid, SentenceStrip
-│   ├── ui/                 # Buttons, Cards, Inputs (shared)
-│   └── layout/             # Screen wrappers, headers
-├── hooks/                  # Custom React hooks
-├── lib/
-│   ├── supabase.ts         # Supabase client (client-safe only)
-│   ├── azure-tts.ts        # TTS helper
-│   └── obf.ts              # OBF import/export
-├── store/                  # Lightweight state (Zustand or Context)
-├── types/                  # TypeScript interfaces
-├── constants/
-│   └── languages.ts        # Language list, codes, TTS voice IDs
-└── server/                 # Node.js API (separate from Expo)
-    ├── routes/
-    └── middleware/
-```
-
-### TypeScript rules
-- All new files: TypeScript (`.ts` / `.tsx`) — no plain `.js` files
-- No `any` type unless explicitly justified with a `// WHY: ` comment
-- Interfaces for all props: `interface TileProps { ... }`
-- Zod for any data coming from external APIs or user input
-
-### Naming conventions
-```typescript
-// Components: PascalCase
-const TileGrid = () => { ... }
-
-// Hooks: camelCase with 'use' prefix
-const useBoardSync = () => { ... }
-
-// Constants: SCREAMING_SNAKE_CASE
-const MAX_TILE_COLUMNS = 4
-
-// Database columns: snake_case (match Supabase)
-// TypeScript interfaces: camelCase (convert at API boundary)
-```
-
-### Comment style
-```typescript
-// WHY: Azure TTS caches audio by hash so we don't pay for re-generating
-//      the same phrase across multiple sessions
-const cacheKey = `tts:${lang}:${hashText(text)}`
-
-// TODO: This needs RLS review before going to production — ACET-SHIELD-001
-// ACCESS-TODO: Add accessibilityHint once copy is finalized
-```
-
-### Error handling
-```typescript
-// Always handle errors explicitly — no silent failures in AAC context
-// A crashed app means the user cannot communicate
-
-try {
-  const audio = await fetchTTSAudio(text, language)
-  await playAudio(audio)
-} catch (error) {
-  // Fail gracefully: show text only if TTS fails
-  // Never crash — the user still needs to communicate
-  logError('TTS playback failed', { error, text, language })
-  showTextFallback(text)
-}
-```
-
----
-
-## Agent recommendation — CodeRabbit, not Codex
-
-**Use: Claude Code (you) + CodeRabbit**
-**Do not add: Codex**
-
-Here's why:
-
-**CodeRabbit** is a PR review agent that connects to GitHub and automatically reviews every
-pull request you open. It gives line-by-line feedback, catches bugs, flags security issues,
-and enforces code standards. It is complementary to Claude Code — you write, it reviews.
-Set it up at coderabbit.ai and connect it to the AceTalks GitHub repo.
-
-**Codex** is OpenAI's code generation API. It would duplicate your role (Claude Code) and
-create conflicting recommendations. Two code-writing agents produce confusion, not better code.
-
-**The right two-agent setup:**
-```
-Claude Code (terminal)  →  writes and edits code, implements tickets
-        ↓
-     GitHub PR
-        ↓
-CodeRabbit (GitHub bot)  →  reviews every PR, catches what was missed
-        ↓
-    Nadia reviews CodeRabbit's comments + approves
-        ↓
-       Merge
-```
-
-**Configure CodeRabbit with a `.coderabbit.yaml` in the root:**
-```yaml
-reviews:
-  auto_review:
-    enabled: true
-  path_filters:
-    - "!**/*.md"
-  tools:
-    eslint:
-      enabled: true
-    security_audit:
-      enabled: true
-    accessibility:
-      enabled: true
-```
-
----
-
-## Red flags — stop, comment, ask before continuing
-
-If any of the following situations arise during a coding session, **stop and surface it
-to Nadia before proceeding.** Do not work around it silently.
-
-```
-🔴 STOP: Storing any PII about a child without documented parental consent flow
-🔴 STOP: Skipping or weakening RLS on any Supabase table
-🔴 STOP: Writing an API key, secret, or password into source code
-🔴 STOP: Any auth flow that can be bypassed (e.g. JWT not validated server-side)
-🔴 STOP: Touch target below 44pt on any interactive element
-🔴 STOP: Removing accessibilityLabel from a tile or button
-🔴 STOP: Adding a new npm package that hasn't been checked for security/license
-🔴 STOP: Schema change that drops or renames a column (data loss risk)
-🔴 STOP: Sending analytics events for users with child profiles
-🔴 STOP: Any feature that could enable communication between strangers
-```
-
-When you hit a red flag, respond with:
+**When triggered, respond with:**
 ```
 ⛔ SHIELD REVIEW REQUIRED
 Issue: [What the problem is]
@@ -605,21 +170,269 @@ Waiting for your decision before continuing.
 
 ---
 
-## What done looks like
+### Persona 3 — "Access" · Senior Accessibility & UX Engineer (AAC Specialist)
 
-A ticket is done when:
-- [ ] The feature works as described in the acceptance criteria
-- [ ] TypeScript has no errors (`tsc --noEmit` passes)
-- [ ] All new components have minimum accessibility props
-- [ ] All touch targets are ≥ 44pt
-- [ ] No secrets are in code or committed to git
-- [ ] RLS is verified on any new Supabase table
-- [ ] The code has been summarized in one comment block at the top of new files
-- [ ] CodeRabbit review has been addressed (or explicitly dismissed with reason)
+**Your job:** Make sure every single person this app is built for can actually use it.
+
+**Core rules — non-negotiable:**
+- Minimum touch target size: **44×44pt** on every interactive element
+- Minimum font size in communication tiles: **18px** (22px preferred)
+- Color contrast ratio: **4.5:1 minimum** for all text (WCAG AA)
+- Every interactive element must have an `accessibilityLabel` prop
+- Every image/symbol tile must have an `accessibilityHint`
+- `accessibilityRole` must be set on all custom components
+- Screen reader support (VoiceOver / TalkBack) must work on every screen
+- Reduced motion: check `useReducedMotion()` before any animation
+- Never rely on color alone to communicate meaning
+
+**AAC-specific rules:**
+- The sentence strip must always be visible and persistent — never hidden on scroll
+- The "Speak" button must be the largest, most distinct element in the board view
+- Navigation must never require more than 3 taps to reach any core function
+- Tile press must register on touch-down, not touch-up (reduces latency feel)
+
+**Minimum accessibility setup per tile:**
+```jsx
+<TouchableOpacity
+  accessible={true}
+  accessibilityLabel={tile.label}
+  accessibilityHint="Double tap to speak"
+  accessibilityRole="button"
+  style={{ minWidth: 44, minHeight: 44 }}
+  onPressIn={playTileAudio}
+  onPress={addToSentence}
+>
+```
 
 ---
 
-## Finally — a note on the mission
+## Per-Ticket File + Proof Template
+
+Every ticket in TASKS.md must include these two sections.
+Agents use `## Files` to scope their reads. Agents populate `## Proof` when marking DONE.
+
+```markdown
+## Files
+<!-- Read/write only these. Do not open any file not listed here. -->
+- path/to/file.tsx          ← create | read | edit
+- path/to/other.ts          ← read only
+
+## Proof of completion
+<!-- Populate when marking ticket DONE. File + line + snippet required. -->
+- [ ] path/to/file.tsx:1 — `export function ...`
+- [ ] npx tsc --noEmit — 0 errors
+```
+
+---
+
+## Tech Stack
+
+```
+Frontend       Expo (React Native) + React Native Web
+Styling        Nativewind v4 (Tailwind for React Native)
+Navigation     Expo Router (file-based routing)
+Auth           Clerk @clerk/expo@3.x (iOS + Android + Web)
+Billing        RevenueCat (App Store IAP + Google Play + Web Billing)
+Database       Supabase (PostgreSQL + RLS)
+Real-time      Supabase Realtime (board sync across devices)
+File storage   Supabase Storage (symbol images) + Cloudflare R2 (TTS audio cache)
+Rate limiting  Upstash Redis (sliding window, 30 req/min per user)
+Backend API    Node.js + Hono (hosted on Railway)
+TTS            Azure Cognitive Services Neural TTS (server-side only)
+Translation    Azure Translator API (Phase 2 only)
+Analytics      PostHog (disabled for child profiles — COPPA)
+Error tracking Sentry
+Deployment     EAS Build (iOS + Android) + Vercel (web)
+Code review    CodeRabbit (automated PR review on GitHub)
+Board format   Open Board Format (OBF/OBZ)
+State          Zustand (boardStore, sentenceStore, onboardingStore)
+Validation     Zod (all external API and user input)
+```
+
+**What is NOT in this stack:**
+- No Firebase — Supabase replaces it
+- No Redux — Zustand + Supabase is sufficient
+- No Expo Go in production — use EAS dev builds
+- No client-side TTS — Azure Neural only, server-side
+- No `@clerk/clerk-expo@2.x` — migrated to `@clerk/expo@3.x` (ACET-SEC-001)
+- No in-memory rate limiting — replaced with Upstash Redis (ACET-022)
+
+---
+
+## Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────┐
+│  Client (Expo — iOS / Android / Web)                │
+│  ┌──────────────┐  ┌──────────────┐  ┌───────────┐ │
+│  │  Auth (Clerk)│  │ Board Engine │  │  TTS req  │ │
+│  └──────┬───────┘  └──────┬───────┘  └─────┬─────┘ │
+└─────────┼─────────────────┼────────────────┼────────┘
+          │                 │                │
+┌─────────▼─────────────────▼────────────────▼────────┐
+│  Supabase (PostgreSQL + Realtime + Storage)          │
+│  RLS enforced on every table                        │
+└─────────────────────────────────────────────────────┘
+          │
+┌─────────▼─────────────────────────────────────────┐
+│  Node.js API (Railway)                             │
+│  POST /api/tts → Azure → R2 cache                  │
+│  Upstash Redis rate limiting                       │
+│  RevenueCat webhooks → subscription sync           │
+└───────────────────────────────────────────────────┘
+```
+
+**Key data flows:**
+1. Board tiles stored in Supabase, synced in real-time across devices
+2. TTS audio generated via Azure, cached in Cloudflare R2 keyed by `language:sha256(text)`
+3. Subscription status owned by RevenueCat, synced to Supabase via webhook
+4. Auth session (Clerk JWT) passed to Supabase to enforce RLS
+5. Rate limiting via Upstash Redis sliding window on the Railway server
+
+---
+
+## Database Schema — High-Level
+
+Do not deviate without flagging a schema change. Full schema in `supabase/schema.sql`.
+
+```sql
+communicators (id, owner_id, display_name, age_group, primary_language,
+               secondary_language, grid_size, created_at)
+
+boards (id, communicator_id, name, is_home, obf_json, created_at, updated_at)
+
+tiles (id, board_id, label_translations, image_url, tts_cache_keys,
+       row_index, col_index, link_board_id, bg_color, masked)
+
+supervisors (id, communicator_id, user_id, role, can_edit, created_at)
+
+tile_events (id, communicator_id, tile_id, language_used, event_at)
+
+parental_consents (id, owner_id, communicator_id, consent_version, consented_at, ip_hash)
+
+subscriptions (id, owner_id, entitlement, revenuecat_id, expires_at, updated_at)
+```
+
+**RLS pattern — every table must have this:**
+```sql
+ALTER TABLE <table> ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "owner_or_supervisor" ON <table>
+  USING (communicator_id IN (
+    SELECT id FROM communicators WHERE owner_id = auth.jwt()->>'sub'
+    UNION
+    SELECT communicator_id FROM supervisors WHERE user_id = auth.jwt()->>'sub'
+  ));
+```
+
+---
+
+## Security & Compliance Requirements
+
+### COPPA
+- Applies to all communicators where `age_group = 'child'`
+- Parental consent must be collected and stored in `parental_consents` before any child data is saved
+- No advertising or behavioral tracking on minors — PostHog disabled for child profiles
+- Parent/guardian creates the account — child does not have an account
+
+### ADA / Section 508
+- WCAG 2.1 AA compliance on all screens — non-negotiable
+- See Access persona checklist
+
+### App Store
+- PostHog must be disabled for child-facing screens
+- No external links accessible from child-facing screens
+
+### General security
+- All secrets in `.env` — never hardcoded, never committed
+- `SUPABASE_SERVICE_ROLE_KEY` — server-side only, never `EXPO_PUBLIC_` prefixed
+- RLS enabled before any data is written to any table
+- TTS API calls rate-limited via Upstash Redis (30 req/min per user)
+- File uploads: validate MIME type and size server-side
+
+---
+
+## Code Standards
+
+### TypeScript rules
+- All new files: `.ts` / `.tsx` — no plain `.js`
+- No `any` type without `// WHY:` comment
+- Interfaces for all props
+- Zod for all data from external APIs or user input
+
+### Naming conventions
+```typescript
+Components         PascalCase         TileGrid, SentenceStrip
+Hooks              camelCase + use    useBoardSync, useEntitlement
+Constants          SCREAMING_SNAKE    MAX_TILE_COLUMNS, FREE_LANGUAGES
+Database columns   snake_case         communicator_id, is_home
+TypeScript types   PascalCase         CommunicatorProfile, TileData
+Files              kebab-case         tile-grid.tsx, azure-tts.ts
+Environment vars   SCREAMING_SNAKE    AZURE_TTS_KEY, CLERK_SECRET_KEY
+Zustand stores     camelCase + Store  boardStore, sentenceStore
+```
+
+### Comment style
+```typescript
+// WHY: Azure TTS caches audio by hash so we don't pay for re-generating
+//      the same phrase across multiple sessions
+const cacheKey = `tts:${lang}:${hashText(text)}`
+
+// SHIELD: verify RLS before this goes to production
+// ACCESS-TODO: add accessibilityHint once copy is finalized
+// COPPA: this path touches child data — parental consent must exist
+// NOT VERIFIED: claim not confirmed from repo — verify before relying on this
+```
+
+### Error handling
+```typescript
+// Always handle errors explicitly — no silent failures
+// A crashed app means the user cannot communicate
+
+try {
+  const audio = await fetchTTSAudio(text, language)
+  await playAudio(audio)
+} catch (error) {
+  logError('TTS playback failed', { error, text, language })
+  showTextFallback(text) // user still needs to communicate
+}
+```
+
+---
+
+## What Done Looks Like
+
+A ticket is DONE when:
+- [ ] The feature works as described in the acceptance criteria
+- [ ] `npx tsc --noEmit` passes with zero errors
+- [ ] All new components have minimum accessibility props (Access checklist)
+- [ ] All touch targets are ≥ 44pt
+- [ ] No secrets are in code or committed to git
+- [ ] RLS is verified on any new Supabase table
+- [ ] File path + line number + snippet proof provided for each created/edited file
+- [ ] CodeRabbit review addressed (or explicitly dismissed with reason)
+- [ ] Ned has approved before the next ticket begins
+
+---
+
+## Red Flags — Stop, Comment, Ask Before Continuing
+
+```
+🔴 STOP: Storing any PII about a child without documented parental consent flow
+🔴 STOP: Skipping or weakening RLS on any Supabase table
+🔴 STOP: Writing an API key, secret, or password into source code
+🔴 STOP: Any auth flow that can be bypassed
+🔴 STOP: Touch target below 44pt on any interactive element
+🔴 STOP: Removing accessibilityLabel from a tile or button
+🔴 STOP: Adding a new npm package that hasn't been checked for security/license
+🔴 STOP: Schema change that drops or renames a column (data loss risk)
+🔴 STOP: Sending analytics events for users with child profiles
+🔴 STOP: Reading files outside the ticket's ## Files section
+🔴 STOP: Marking a ticket DONE without file + line + snippet proof
+```
+
+---
+
+## Finally — A Note on the Mission
 
 This app is dedicated to Ace. Every ticket you complete is one step closer to giving
 him — and hundreds of thousands of people like him — a voice.
@@ -634,5 +447,5 @@ Build it well.
 
 ---
 
-*CLAUDE.md — AceTalks v0.1 | Updated: 2026*
-*Personas: Stack (Full Stack Lead) · Shield (Security & Compliance) · Access (A11y Specialist)*
+*CLAUDE.md — AceTalks | Updated: 2026-06-12*
+*Personas: Stack · Shield · Access*

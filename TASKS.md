@@ -6,6 +6,20 @@ Scope: Phase 0 mobile-first (iOS + Android + Web via Expo). Each ticket should b
 
 ---
 
+## Git Branching Rule — Non-Negotiable
+
+**Never push directly to `main`.** Every ticket ships via a PR, not a direct push.
+
+For each ticket:
+1. `git checkout -b acet-XXX-short-description` before writing any code
+2. Commit work to the branch
+3. `gh pr create --title "ACET-XXX: ..."` to open the PR
+4. Stop — Nadia merges after CodeRabbit review passes
+
+Branch naming: `acet-XXX-kebab-description` · One branch per ticket · No direct pushes to `main`.
+
+---
+
 ## Phase 0 Claude Code Queue — Execute in Order
 
 Claude Code picks the next OPEN ticket from this list, implements it, marks it DONE, and updates this file. Do not skip ahead. Stop after each ticket and wait for Nadia's approval.
